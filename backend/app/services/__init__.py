@@ -5,6 +5,8 @@ from app.services.discount_service import DiscountService
 from app.services.billing_service import BillingService
 from app.services.payment_service import PaymentService
 from app.services.dashboard_service import DashboardService
+from app.services.quotation_service import QuotationService
+from app.services.subscription_service import SubscriptionService
 
 __all__ = [
     "HealthService",
@@ -14,4 +16,6 @@ __all__ = [
     "BillingService",
     "PaymentService",
     "DashboardService",
+    "QuotationService",
+    "SubscriptionService",
 ]
