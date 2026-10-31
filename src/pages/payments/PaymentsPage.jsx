@@ -1,230 +1,111 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Eye, Filter, CreditCard, DollarSign } from 'lucide-react';
 import { paymentService, invoiceService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { PageHeader } from '../../components/ui/Common';
+import { PageHeader, SearchInput } from '../../components/ui/Common';
 import { Card } from '../../components/ui/Card';
 import { Table, TableHead, Th, TableBody, Td, TableSkeleton, TableEmpty } from '../../components/ui/Table';
-import { Button } from '../../components/ui/Button';
+import { Button, IconButton } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { Input, Select, Textarea } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
+import { formatCurrency } from '../../utils/quotationCalculations';
+import { RecordPaymentModal } from './RecordPaymentModal';
 
 function formatDate(str) {
   if (!str) return '—';
   return new Date(str).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function formatCurrency(val) {
-  if (val === undefined || val === null) return '—';
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
-}
+const METHOD_FILTERS = [
+  { value: 'ALL', label: 'All Payment Methods' },
+  { value: 'CREDIT_CARD', label: 'Credit / Debit Card' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'BANK_TRANSFER', label: 'Bank Wire / NEFT' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CHEQUE', label: 'Cheque' },
+];
 
-function RecordPaymentModal({ isOpen, onClose, onSaved, invoices }) {
-  const addToast = useToast();
-  const [form, setForm] = useState({
-    invoice_id: '',
-    amount: '',
-    payment_method: 'CREDIT_CARD',
-    payment_date: new Date().toISOString().split('T')[0],
-    notes: '',
-  });
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setForm({
-        invoice_id: '',
-        amount: '',
-        payment_method: 'CREDIT_CARD',
-        payment_date: new Date().toISOString().split('T')[0],
-        notes: '',
-      });
-      setErrors({});
-    }
-  }, [isOpen]);
-
-  const selectedInvoice = invoices.find((inv) => String(inv.id) === String(form.invoice_id));
-  const outstanding = selectedInvoice
-    ? (selectedInvoice.balance_due ?? (selectedInvoice.total || 0) - (selectedInvoice.amount_paid || 0))
-    : null;
-
-  const validate = () => {
-    const e = {};
-    if (!form.invoice_id) e.invoice_id = 'Please select an invoice';
-    if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) {
-      e.amount = 'Enter a valid payment amount greater than zero';
-    } else if (outstanding !== null && Number(form.amount) > outstanding) {
-      e.amount = `Amount cannot exceed outstanding balance (${formatCurrency(outstanding)})`;
-    }
-    if (!form.payment_date) e.payment_date = 'Payment date is required';
-    return e;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
-    }
-    setLoading(true);
-    try {
-      const payload = {
-        invoice_id: form.invoice_id,
-        amount: Number(form.amount),
-        payment_method: form.payment_method,
-        payment_date: `${form.payment_date}T00:00:00Z`,
-        notes: form.notes.trim() || null,
-      };
-
-      await paymentService.create(payload);
-      onSaved();
-    } catch (err) {
-      const msg = getErrorMessage(err, 'Failed to record payment');
-      addToast(msg, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const set = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: '' }));
-    if (field === 'invoice_id') {
-      const inv = invoices.find((x) => String(x.id) === String(e.target.value));
-      if (inv) {
-        const bal = inv.balance_due ?? (inv.total || 0) - (inv.amount_paid || 0);
-        if (bal > 0) setForm((prev) => ({ ...prev, invoice_id: e.target.value, amount: bal }));
-      }
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Record Payment">
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <Select label="Target Invoice" value={form.invoice_id} onChange={set('invoice_id')} error={errors.invoice_id} required>
-          <option value="">Select an invoice to pay...</option>
-          {invoices
-            .filter((inv) => {
-              const status = (inv.status || '').toUpperCase();
-              return ['CONFIRMED', 'SENT', 'OVERDUE', 'PARTIALLY_PAID', 'DRAFT'].includes(status);
-            })
-            .map((inv) => {
-              const bal = inv.balance_due ?? (inv.total || 0) - (inv.amount_paid || 0);
-              return (
-                <option key={inv.id} value={inv.id}>
-                  {inv.invoice_number || inv.number || `INV-${inv.id}`} — {inv.customer_name || inv.customer?.name} (Due: {formatCurrency(bal)})
-                </option>
-              );
-            })}
-        </Select>
-
-        {outstanding !== null && (
-          <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg flex items-center justify-between text-xs">
-            <span className="text-slate-600">Total Invoice: <strong>{formatCurrency(selectedInvoice.total)}</strong></span>
-            <span className="text-blue-800 font-semibold">Remaining Due: {formatCurrency(outstanding)}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Payment Amount (₹)"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={form.amount}
-            onChange={set('amount')}
-            error={errors.amount}
-            placeholder="0.00"
-            required
-          />
-          <Input
-            label="Payment Date"
-            type="date"
-            value={form.payment_date}
-            onChange={set('payment_date')}
-            error={errors.payment_date}
-            required
-          />
-        </div>
-
-        <Select label="Payment Method" value={form.payment_method} onChange={set('payment_method')}>
-          <option value="CREDIT_CARD">Credit / Debit Card</option>
-          <option value="BANK_TRANSFER">Bank Wire Transfer</option>
-          <option value="UPI">UPI</option>
-          <option value="CASH">Cash</option>
-          <option value="OTHER">Other Gateway</option>
-        </Select>
-
-        <Textarea
-          label="Transaction / Reference Notes"
-          value={form.notes}
-          onChange={set('notes')}
-          placeholder="Bank reference number, cheque number, or gateway tx ID"
-          rows={2}
-        />
-
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={loading}>
-            Confirm Payment
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
+const STATUS_FILTERS = [
+  { value: 'ALL', label: 'All Statuses' },
+  { value: 'SUCCESSFUL', label: 'Successful' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'FAILED', label: 'Failed' },
+];
 
 export default function PaymentsPage() {
   const addToast = useToast();
   const { isCustomer } = useAuth();
+
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [methodFilter, setMethodFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const fetchData = useCallback(async () => {
+  // Modals
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [viewPayment, setViewPayment] = useState(null);
+
+  const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const [payRes, invRes] = await Promise.all([
-        paymentService.getAll(),
-        invoiceService.getAll().catch(() => ({ data: [] })),
-      ]);
-      const payList = Array.isArray(payRes.data) ? payRes.data : (payRes.data?.items || []);
-      const invList = Array.isArray(invRes.data) ? invRes.data : (invRes.data?.items || []);
-      setPayments(payList);
-      setInvoices(invList);
+      const params = {};
+      if (search.trim()) params.search = search.trim();
+      if (methodFilter !== 'ALL') params.method = methodFilter;
+      if (statusFilter !== 'ALL') params.status = statusFilter;
+
+      const res = await paymentService.getAll(params);
+      const list = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setPayments(list);
     } catch (err) {
       addToast(getErrorMessage(err, 'Failed to load payments'), 'error');
     } finally {
       setLoading(false);
     }
+  }, [search, methodFilter, statusFilter]);
+
+  const fetchInvoices = useCallback(async () => {
+    try {
+      const res = await invoiceService.getAll();
+      const list = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setInvoices(list);
+    } catch {
+      // Invoices for payment matching
+    }
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const t = setTimeout(fetchPayments, 250);
+    return () => clearTimeout(t);
+  }, [fetchPayments]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const handleSaved = () => {
-    setModalOpen(false);
-    fetchData();
-    addToast('Payment recorded successfully', 'success');
+    setRecordModalOpen(false);
+    fetchPayments();
+    fetchInvoices();
+    addToast('Payment recorded and applied successfully', 'success');
   };
 
+  // Find linked invoice for viewing payment details
+  const linkedInvoice = viewPayment
+    ? invoices.find((inv) => String(inv.id) === String(viewPayment.invoice_id) || inv.invoice_number === viewPayment.invoice_number)
+    : null;
+
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
         title="Payments"
-        subtitle={`${payments.length} processed payment transaction(s)`}
+        subtitle={`${payments.length} customer transaction(s) recorded`}
         action={
           !isCustomer && (
-            <Button onClick={() => setModalOpen(true)}>
+            <Button onClick={() => setRecordModalOpen(true)}>
               <Plus className="w-4 h-4" /> Record Payment
             </Button>
           )
@@ -232,40 +113,95 @@ export default function PaymentsPage() {
       />
 
       <Card>
+        {/* Search & Filter Toolbar */}
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="flex-1 max-w-md">
+            <SearchInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by payment ref, invoice #, customer or notes..."
+              className="w-full"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+            <select
+              value={methodFilter}
+              onChange={(e) => setMethodFilter(e.target.value)}
+              className="text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              {METHOD_FILTERS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              {STATUS_FILTERS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Payments Table */}
         <Table>
           <TableHead>
-            <Th>Payment Reference</Th>
+            <Th>Payment Ref</Th>
             <Th>Invoice #</Th>
             <Th>Customer</Th>
+            <Th>Payment Method</Th>
+            <Th>Amount Paid</Th>
             <Th>Payment Date</Th>
-            <Th>Method</Th>
-            <Th>Amount</Th>
             <Th>Status</Th>
+            <Th className="text-right">Actions</Th>
           </TableHead>
           {loading ? (
-            <TableSkeleton cols={7} rows={6} />
+            <TableSkeleton cols={8} rows={6} />
           ) : payments.length === 0 ? (
-            <TableEmpty message="No payments recorded yet." cols={7} />
+            <TableEmpty message="No payments found matching your filter criteria." cols={8} />
           ) : (
             <TableBody>
               {payments.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                   <Td className="font-mono text-xs font-semibold text-slate-900">
-                    {p.payment_reference || `PAY-${p.id}`}
+                    <button
+                      type="button"
+                      onClick={() => setViewPayment(p)}
+                      className="hover:text-blue-600 transition-colors"
+                    >
+                      {p.payment_reference || `#${p.id}`}
+                    </button>
                   </Td>
-                  <Td className="font-mono text-xs text-slate-700">
-                    {p.invoice_number || p.invoice?.invoice_number || p.invoice?.number || `INV-${p.invoice_id}`}
+                  <Td className="font-mono text-xs text-blue-700 font-medium">
+                    {p.invoice_number || (p.invoice_id ? `INV-${p.invoice_id}` : '—')}
                   </Td>
-                  <Td className="font-medium text-slate-900">
-                    {p.customer_name || p.customer?.name || p.invoice?.customer_name || p.invoice?.customer?.name || '—'}
+                  <Td className="font-medium text-slate-900">{p.customer_name || 'Client'}</Td>
+                  <Td>
+                    <StatusBadge status={p.payment_method} />
                   </Td>
-                  <Td>{formatDate(p.payment_date || p.created_at || p.date)}</Td>
-                  <Td className="font-medium text-slate-700">
-                    {(p.payment_method || '').replace(/_/g, ' ')}
-                  </Td>
-                  <Td className="font-semibold text-emerald-700">{formatCurrency(p.amount)}</Td>
+                  <Td className="font-bold text-emerald-700">{formatCurrency(p.amount)}</Td>
+                  <Td>{formatDate(p.payment_date || p.created_at)}</Td>
                   <Td>
                     <StatusBadge status={p.status || 'SUCCESSFUL'} />
+                  </Td>
+                  <Td>
+                    <div className="flex justify-end">
+                      <IconButton
+                        icon={Eye}
+                        label="View transaction details"
+                        onClick={() => setViewPayment(p)}
+                        className="text-slate-500 hover:text-blue-600"
+                      />
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -274,12 +210,108 @@ export default function PaymentsPage() {
         </Table>
       </Card>
 
+      {/* Record Payment Modal */}
       <RecordPaymentModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        isOpen={recordModalOpen}
+        onClose={() => setRecordModalOpen(false)}
         onSaved={handleSaved}
         invoices={invoices}
       />
+
+      {/* View Payment Details Modal */}
+      <Modal
+        isOpen={Boolean(viewPayment)}
+        onClose={() => setViewPayment(null)}
+        title="Transaction & Payment Details"
+        size="md"
+      >
+        {viewPayment && (
+          <div className="space-y-4 text-xs">
+            {/* Header Badge */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-slate-400 block font-medium">Payment Reference</span>
+                <span className="text-sm font-bold font-mono text-slate-900">
+                  {viewPayment.payment_reference || viewPayment.id}
+                </span>
+              </div>
+              <StatusBadge status={viewPayment.status || 'SUCCESSFUL'} />
+            </div>
+
+            {/* Payment Metrics */}
+            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wide">
+                  Amount Transferred
+                </span>
+                <div className="text-xl font-bold text-emerald-700 mt-0.5">
+                  {formatCurrency(viewPayment.amount)}
+                </div>
+              </div>
+              <StatusBadge status={viewPayment.payment_method} />
+            </div>
+
+            {/* Invoice & Outstanding Summary */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+              <span className="font-semibold text-slate-800 block uppercase tracking-wide text-[11px]">
+                Invoice Financial Context
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-slate-400">Target Invoice:</span>
+                  <p className="font-mono font-bold text-blue-700 mt-0.5">
+                    {viewPayment.invoice_number || `INV-${viewPayment.invoice_id}`}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-400">Customer:</span>
+                  <p className="font-semibold text-slate-900 mt-0.5">{viewPayment.customer_name || 'Client'}</p>
+                </div>
+              </div>
+
+              {linkedInvoice && (
+                <div className="border-t border-slate-200 pt-2 grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-slate-400">Invoice Total:</span>
+                    <p className="font-semibold text-slate-800">{formatCurrency(linkedInvoice.total)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Total Paid:</span>
+                    <p className="font-semibold text-emerald-700">{formatCurrency(linkedInvoice.amount_paid || 0)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Remaining Balance:</span>
+                    <p className="font-bold text-red-600">
+                      {formatCurrency(linkedInvoice.balance_due ?? Math.max(0, (linkedInvoice.total || 0) - (linkedInvoice.amount_paid || 0)))}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Execution Date & Reference Notes */}
+            <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
+              <div>
+                <span className="text-slate-400 font-medium">Transaction Execution Date</span>
+                <p className="font-semibold text-slate-800 mt-0.5">{formatDate(viewPayment.payment_date)}</p>
+              </div>
+
+              {viewPayment.notes && (
+                <div className="border-t border-slate-100 pt-2">
+                  <span className="text-slate-400 font-medium">UTR / Transaction Reference</span>
+                  <p className="text-slate-700 mt-0.5 whitespace-pre-line font-mono">{viewPayment.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setViewPayment(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

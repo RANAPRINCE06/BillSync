@@ -37,6 +37,9 @@ import SubscriptionDetailPage from './pages/subscriptions/SubscriptionDetailPage
 import InvoicesPage from './pages/invoices/InvoicesPage';
 import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage';
 
+// Discounts
+import DiscountsPage from './pages/discounts/DiscountsPage';
+
 // Payments
 import PaymentsPage from './pages/payments/PaymentsPage';
 
@@ -133,6 +136,13 @@ export default function App() {
               <Route path="/subscriptions/:id" element={
                 <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <SubscriptionDetailPage />
+                </ProtectedRoute>
+              } />
+
+              {/* Discounts & Vouchers Module */}
+              <Route path="/discounts" element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
+                  <DiscountsPage />
                 </ProtectedRoute>
               } />
 

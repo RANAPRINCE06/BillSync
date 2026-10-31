@@ -568,6 +568,54 @@ export const INITIAL_MOCK_DATA = {
     },
   ],
 
+  discounts: [
+    {
+      id: 'disc-001',
+      name: 'Diwali Festive Enterprise Promo',
+      discount_type: 'PERCENTAGE',
+      discount_value: 15,
+      min_purchase: 10000,
+      min_quantity: 1,
+      start_date: '2026-10-01T00:00:00Z',
+      end_date: '2026-11-15T23:59:59Z',
+      usage_limit: 50,
+      times_used: 18,
+      applicable_to: 'ALL',
+      description: '15% discount on enterprise cloud provisioning orders exceeding ₹10,000.',
+      is_active: true,
+    },
+    {
+      id: 'disc-002',
+      name: 'Starter Tier Flat Waiver',
+      discount_type: 'FIXED',
+      discount_value: 500,
+      min_purchase: 2000,
+      min_quantity: 1,
+      start_date: '2026-09-01T00:00:00Z',
+      end_date: '2027-03-31T23:59:59Z',
+      usage_limit: 100,
+      times_used: 42,
+      applicable_to: 'SUBSCRIPTIONS',
+      description: 'Flat ₹500 discount for new annual and monthly subscription enrollments.',
+      is_active: true,
+    },
+    {
+      id: 'disc-003',
+      name: 'Hardware Telemetry Volume Voucher',
+      discount_type: 'PERCENTAGE',
+      discount_value: 10,
+      min_purchase: 25000,
+      min_quantity: 2,
+      start_date: '2026-08-01T00:00:00Z',
+      end_date: '2026-09-30T23:59:59Z',
+      usage_limit: 25,
+      times_used: 25,
+      applicable_to: 'PRODUCTS',
+      description: 'Expired hardware bulk purchase discount.',
+      is_active: false,
+    },
+  ],
+
   revenue_chart: [
     { month: 'May 2026', revenue: 14500 },
     { month: 'Jun 2026', revenue: 22800 },
@@ -578,7 +626,7 @@ export const INITIAL_MOCK_DATA = {
   ],
 };
 
-const STORAGE_KEY = 'billsync_mock_store_v4';
+const STORAGE_KEY = 'billsync_mock_store_v5';
 
 // Load store from localStorage or initialize with seed
 export function getMockStore() {
@@ -591,6 +639,9 @@ export function getMockStore() {
     const parsed = JSON.parse(raw);
     if (!parsed.quotation_templates) {
       parsed.quotation_templates = INITIAL_MOCK_DATA.quotation_templates;
+    }
+    if (!parsed.discounts) {
+      parsed.discounts = INITIAL_MOCK_DATA.discounts;
     }
     return parsed;
   } catch {

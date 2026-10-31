@@ -678,10 +678,27 @@ export const mockService = {
   // --------------------------------------------------------------------------
   // Invoices
   // --------------------------------------------------------------------------
-  async getInvoices() {
+  async getInvoices(params = {}) {
     await delay();
     const store = getMockStore();
-    return [...store.invoices];
+    let list = [...store.invoices];
+
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (i) =>
+          (i.invoice_number && i.invoice_number.toLowerCase().includes(q)) ||
+          (i.customer_name && i.customer_name.toLowerCase().includes(q)) ||
+          (i.company && i.company.toLowerCase().includes(q)) ||
+          (i.subscription_id && i.subscription_id.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.status && params.status !== 'ALL') {
+      list = list.filter((i) => (i.status || '').toUpperCase() === params.status.toUpperCase());
+    }
+
+    return list;
   },
 
   async getInvoiceById(id) {
@@ -689,7 +706,17 @@ export const mockService = {
     const store = getMockStore();
     const inv = store.invoices.find((i) => String(i.id) === String(id));
     if (!inv) throw new Error('Invoice not found');
-    return inv;
+
+    const customer = store.customers.find((c) => String(c.id) === String(inv.customer_id));
+    const subscription = store.subscriptions.find((s) => String(s.id) === String(inv.subscription_id));
+    const payments = store.payments.filter((p) => String(p.invoice_id) === String(inv.id));
+
+    return {
+      ...inv,
+      customer,
+      subscription,
+      payments,
+    };
   },
 
   async confirmInvoice(id) {
@@ -724,12 +751,128 @@ export const mockService = {
   },
 
   // --------------------------------------------------------------------------
-  // Payments
+  // Discount Management
   // --------------------------------------------------------------------------
-  async getPayments() {
+  async getDiscounts(params = {}) {
     await delay();
     const store = getMockStore();
-    return [...store.payments];
+    let list = [...(store.discounts || [])];
+
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          (d.description && d.description.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.status && params.status !== 'ALL') {
+      const now = new Date();
+      list = list.filter((d) => {
+        const isExpired = d.end_date && new Date(d.end_date) < now;
+        const isExhausted = d.usage_limit && (d.times_used || 0) >= d.usage_limit;
+        let computed = 'ACTIVE';
+        if (isExpired) computed = 'EXPIRED';
+        else if (isExhausted) computed = 'EXHAUSTED';
+        else if (d.is_active === false) computed = 'INACTIVE';
+
+        return computed === params.status.toUpperCase();
+      });
+    }
+
+    return list;
+  },
+
+  async getDiscountById(id) {
+    await delay();
+    const store = getMockStore();
+    const d = (store.discounts || []).find((x) => String(x.id) === String(id));
+    if (!d) throw new Error('Discount not found');
+    return d;
+  },
+
+  async createDiscount(data) {
+    await delay();
+    const store = getMockStore();
+    if (!store.discounts) store.discounts = [];
+    const newDisc = {
+      id: uid('disc'),
+      name: data.name.trim(),
+      discount_type: (data.discount_type || 'PERCENTAGE').toUpperCase(),
+      discount_value: Number(data.discount_value) || 0,
+      min_purchase: Number(data.min_purchase) || 0,
+      min_quantity: Number(data.min_quantity) || 1,
+      start_date: data.start_date || new Date().toISOString(),
+      end_date: data.end_date || null,
+      usage_limit: data.usage_limit ? Number(data.usage_limit) : null,
+      times_used: 0,
+      applicable_to: data.applicable_to || 'ALL',
+      description: data.description ? data.description.trim() : '',
+      is_active: data.is_active ?? true,
+      created_at: new Date().toISOString(),
+    };
+    store.discounts.unshift(newDisc);
+    saveMockStore(store);
+    return newDisc;
+  },
+
+  async updateDiscount(id, data) {
+    await delay();
+    const store = getMockStore();
+    if (!store.discounts) store.discounts = [];
+    const idx = store.discounts.findIndex((x) => String(x.id) === String(id));
+    if (idx === -1) throw new Error('Discount not found');
+    store.discounts[idx] = {
+      ...store.discounts[idx],
+      ...data,
+      discount_value: data.discount_value !== undefined ? Number(data.discount_value) : store.discounts[idx].discount_value,
+      min_purchase: data.min_purchase !== undefined ? Number(data.min_purchase) : store.discounts[idx].min_purchase,
+      min_quantity: data.min_quantity !== undefined ? Number(data.min_quantity) : store.discounts[idx].min_quantity,
+      usage_limit: data.usage_limit !== undefined ? (data.usage_limit ? Number(data.usage_limit) : null) : store.discounts[idx].usage_limit,
+      updated_at: new Date().toISOString(),
+    };
+    saveMockStore(store);
+    return store.discounts[idx];
+  },
+
+  async deleteDiscount(id) {
+    await delay();
+    const store = getMockStore();
+    if (!store.discounts) store.discounts = [];
+    store.discounts = store.discounts.filter((x) => String(x.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
+  },
+
+  // --------------------------------------------------------------------------
+  // Payments
+  // --------------------------------------------------------------------------
+  async getPayments(params = {}) {
+    await delay();
+    const store = getMockStore();
+    let list = [...store.payments];
+
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          (p.payment_reference && p.payment_reference.toLowerCase().includes(q)) ||
+          (p.invoice_number && p.invoice_number.toLowerCase().includes(q)) ||
+          (p.customer_name && p.customer_name.toLowerCase().includes(q)) ||
+          (p.notes && p.notes.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.method && params.method !== 'ALL') {
+      list = list.filter((p) => (p.payment_method || '').toUpperCase() === params.method.toUpperCase());
+    }
+
+    if (params.status && params.status !== 'ALL') {
+      list = list.filter((p) => (p.status || '').toUpperCase() === params.status.toUpperCase());
+    }
+
+    return list;
   },
 
   async recordPayment(data) {
@@ -739,25 +882,35 @@ export const mockService = {
     if (!inv) throw new Error('Target invoice not found');
 
     const paymentAmount = Number(data.amount);
+    const outstanding = inv.balance_due ?? Math.max(0, (Number(inv.total) || 0) - (Number(inv.amount_paid) || 0));
+    if (paymentAmount <= 0) {
+      throw new Error('Payment amount must be greater than zero');
+    }
+    if (paymentAmount > outstanding + 0.01) {
+      throw new Error(`Payment cannot exceed outstanding balance of ₹${outstanding}`);
+    }
+
     const newPayment = {
       id: uid('pay'),
       payment_reference: `PAY-2026-${String(store.payments.length + 1).padStart(3, '0')}`,
       invoice_id: inv.id,
       invoice_number: inv.invoice_number,
+      customer_id: inv.customer_id,
       customer_name: inv.customer_name,
       amount: paymentAmount,
       payment_method: data.payment_method || 'CREDIT_CARD',
       payment_date: data.payment_date || new Date().toISOString(),
       status: 'SUCCESSFUL',
-      notes: data.notes || '',
+      notes: data.notes ? data.notes.trim() : '',
       created_at: new Date().toISOString(),
     };
 
     // Update target invoice balances
-    inv.amount_paid = (Number(inv.amount_paid) || 0) + paymentAmount;
-    inv.balance_due = Math.max(0, (Number(inv.total) || 0) - inv.amount_paid);
+    inv.amount_paid = Number(((Number(inv.amount_paid) || 0) + paymentAmount).toFixed(2));
+    inv.balance_due = Math.max(0, Number(((Number(inv.total) || 0) - inv.amount_paid).toFixed(2)));
 
-    if (inv.balance_due <= 0) {
+    if (inv.balance_due <= 0.01) {
+      inv.balance_due = 0;
       inv.status = 'PAID';
     } else {
       inv.status = 'PARTIALLY_PAID';

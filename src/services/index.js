@@ -150,7 +150,7 @@ export const subscriptionService = {
 // ----------------------------------------------------------------------------
 export const invoiceService = {
   getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getInvoices()) : api.get('/invoices', { params }),
+    USE_MOCK ? mockWrap(mockService.getInvoices(params)) : api.get('/invoices', { params }),
   getById: (id) =>
     USE_MOCK ? mockWrap(mockService.getInvoiceById(id)) : api.get(`/invoices/${id}`),
   confirm: (id) =>
@@ -162,11 +162,27 @@ export const invoiceService = {
 };
 
 // ----------------------------------------------------------------------------
+// Discount Management Service
+// ----------------------------------------------------------------------------
+export const discountService = {
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getDiscounts(params)) : api.get('/discounts', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getDiscountById(id)) : api.get(`/discounts/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createDiscount(data)) : api.post('/discounts', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updateDiscount(id, data)) : api.put(`/discounts/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deleteDiscount(id)) : api.delete(`/discounts/${id}`),
+};
+
+// ----------------------------------------------------------------------------
 // Payments Service
 // ----------------------------------------------------------------------------
 export const paymentService = {
   getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getPayments()) : api.get('/payments', { params }),
+    USE_MOCK ? mockWrap(mockService.getPayments(params)) : api.get('/payments', { params }),
   create: (data) =>
     USE_MOCK ? mockWrap(mockService.recordPayment(data)) : api.post('/payments', data),
 };

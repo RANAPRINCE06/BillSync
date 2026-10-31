@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Package, CreditCard, FileText,
   Repeat, Receipt, DollarSign, Settings, LogOut, Zap,
-  UserCheck, UserCog
+  UserCheck, UserCog, Tag
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,6 +19,7 @@ const ALL_NAV = [
   { to: '/plans', label: 'Subscription Plans', icon: CreditCard, roles: ['ADMIN', 'STAFF'] },
   { to: '/quotations', label: 'Quotations', icon: FileText, roles: ['ADMIN', 'STAFF'] },
   { to: '/subscriptions', label: 'Subscriptions', icon: Repeat, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/discounts', label: 'Discounts', icon: Tag, roles: ['ADMIN', 'STAFF'] },
   { to: '/invoices', label: 'Invoices', icon: Receipt, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
   { to: '/payments', label: 'Payments', icon: DollarSign, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
 
