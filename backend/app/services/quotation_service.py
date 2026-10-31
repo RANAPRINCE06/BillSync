@@ -360,6 +360,51 @@ class QuotationService:
         db.commit()
 
     @classmethod
+    def duplicate_quotation(
+        cls,
+        db: Session,
+        quotation_id: uuid.UUID,
+        current_user: User
+    ) -> Quotation:
+        """
+        Creates a copy of an existing quotation as a new DRAFT quotation.
+        Admin/Staff only.
+        """
+        if current_user.role == UserRole.CUSTOMER:
+            raise ForbiddenException("Customers cannot duplicate quotations.")
+
+        source = cls.get_quotation_by_id(db, quotation_id, current_user)
+        now = datetime.now(timezone.utc)
+        new_num = f"QT-{now.strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
+
+        new_items = []
+        for item in source.items:
+            new_items.append(QuotationItem(
+                product_id=item.product_id,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                tax_rate=item.tax_rate,
+                line_total=item.line_total
+            ))
+
+        new_quote = Quotation(
+            quotation_number=new_num,
+            customer_id=source.customer_id,
+            status=QuotationStatus.DRAFT,
+            valid_until=now + timedelta(days=30),
+            subtotal=source.subtotal,
+            tax_amount=source.tax_amount,
+            discount_amount=source.discount_amount,
+            total=source.total,
+            items=new_items
+        )
+        db.add(new_quote)
+        db.commit()
+        db.refresh(new_quote)
+        logger.info("Quotation %s duplicated as %s", source.quotation_number, new_quote.quotation_number)
+        return new_quote
+
+    @classmethod
     def convert_to_subscription(
         cls,
         db: Session,

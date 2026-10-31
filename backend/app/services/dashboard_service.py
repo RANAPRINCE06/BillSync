@@ -299,6 +299,68 @@ class DashboardService:
         )
 
     @classmethod
+    def get_subscription_chart(
+        cls,
+        db: Session,
+        current_user: User,
+        months: int = 6
+    ) -> List[Any]:
+        """
+        Generates monthly subscription growth and renewal trends for the dashboard.
+        Enforces customer isolation.
+        """
+        from app.schemas.dashboard import SubscriptionChartPoint
+
+        is_customer = current_user.role == UserRole.CUSTOMER
+        cust_id = cls._get_customer_id_for_user(db, current_user) if is_customer else None
+
+        if is_customer and not cust_id:
+            return []
+
+        now = datetime.now(timezone.utc)
+        results: List[SubscriptionChartPoint] = []
+
+        for i in range(months - 1, -1, -1):
+            m_offset = now.month - i
+            y = now.year
+            while m_offset <= 0:
+                m_offset += 12
+                y -= 1
+
+            start_of_month = datetime(y, m_offset, 1, 0, 0, 0, tzinfo=timezone.utc)
+            if m_offset == 12:
+                end_of_month = datetime(y + 1, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            else:
+                end_of_month = datetime(y, m_offset + 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+            month_label = start_of_month.strftime("%b %Y")
+
+            sub_stmt = select(func.count(Subscription.id)).where(
+                Subscription.created_at < end_of_month,
+                Subscription.status == SubscriptionStatus.ACTIVE
+            )
+            if is_customer:
+                sub_stmt = sub_stmt.where(Subscription.customer_id == cust_id)
+            sub_count = db.scalar(sub_stmt) or 0
+
+            inv_stmt = select(func.count(Invoice.id)).where(
+                Invoice.created_at >= start_of_month,
+                Invoice.created_at < end_of_month,
+                Invoice.status != InvoiceStatus.CANCELLED
+            )
+            if is_customer:
+                inv_stmt = inv_stmt.where(Invoice.customer_id == cust_id)
+            renewal_count = db.scalar(inv_stmt) or 0
+
+            results.append(SubscriptionChartPoint(
+                month=month_label,
+                subscriptions=sub_count,
+                renewals=renewal_count
+            ))
+
+        return results
+
+    @classmethod
     def get_recent_activity(
         cls,
         db: Session,

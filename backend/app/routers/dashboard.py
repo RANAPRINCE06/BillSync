@@ -69,6 +69,31 @@ def get_revenue_chart(
 
 
 @router.get(
+    "/subscription-chart",
+    response_model=APIResponse[List[Any]],
+    status_code=status.HTTP_200_OK,
+    summary="Get Subscription Trend Chart",
+    description="Returns chronological monthly subscription counts and renewal volume for the dashboard."
+)
+def get_subscription_chart(
+    months: int = Query(6, ge=1, le=24, description="Number of historical months"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> APIResponse[List[Any]]:
+    """Retrieve monthly subscription growth and renewal trends."""
+    points = DashboardService.get_subscription_chart(
+        db=db,
+        current_user=current_user,
+        months=months
+    )
+    return APIResponse(
+        success=True,
+        message="Subscription chart data retrieved successfully",
+        data=points
+    )
+
+
+@router.get(
     "/recent-activity",
     response_model=APIResponse[List[RecentActivityItem]],
     status_code=status.HTTP_200_OK,
