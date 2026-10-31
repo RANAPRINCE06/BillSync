@@ -1,4 +1,4 @@
-import { db } from '../config/firebase';
+import { db } from '../config/firebase.js';
 import {
   collection,
   doc,
@@ -9,8 +9,8 @@ import {
   getDocs,
   writeBatch
 } from 'firebase/firestore';
-import { calculateFinancialRecords, toPaise, fromPaise } from '../utils/balanceEngine';
-import { getMockStore, saveMockStore } from '../data/mockData';
+import { calculateFinancialRecords, toPaise, fromPaise } from '../utils/balanceEngine.js';
+import { getMockStore, saveMockStore } from '../data/mockData.js';
 
 const FINANCE_EVENT = 'billsync:finance_updated';
 

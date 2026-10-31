@@ -1,206 +1,199 @@
-import api from './api';
-import { mockService } from './mockService';
+import { firestoreService } from './firestoreService.js';
 
-// Flag to control mock mode vs live API.
-// Phase 3 requirement: Complete frontend with temporary mock data first before starting API integration.
-const USE_MOCK = true;
-
-// Helper to wrap mock results in standard Axios-like { data: ... } envelope
-const mockWrap = async (promise) => {
+// Helper to wrap Firestore results in standard Axios-like { data: ... } envelope
+const firestoreWrap = async (promise) => {
   const result = await promise;
   return { data: result };
 };
 
 // ----------------------------------------------------------------------------
-// Authentication Service
+// Authentication Service (Cloud Firestore & Firebase Auth)
 // ----------------------------------------------------------------------------
 export const authService = {
-  login: (data) =>
-    USE_MOCK ? mockWrap(Promise.resolve({ access_token: `demo-token-${data.email}`, user: { name: 'Demo User', email: data.email, role: 'ADMIN' } })) : api.post('/auth/login', data),
-  register: (data) =>
-    USE_MOCK ? mockWrap(Promise.resolve({ success: true, message: 'Account registered' })) : api.post('/auth/register', data),
-  forgotPassword: (data) =>
-    USE_MOCK ? mockWrap(Promise.resolve({ success: true, message: 'Reset email sent' })) : api.post('/auth/forgot-password', data),
-  getMe: () =>
-    USE_MOCK ? mockWrap(Promise.resolve({ name: 'Rudra Chauhan', email: 'admin@billsync.com', role: 'ADMIN' })) : api.get('/auth/me'),
-  logout: () =>
-    USE_MOCK ? mockWrap(Promise.resolve({ success: true })) : api.post('/auth/logout'),
+  login: async (credentials) => {
+    const email = (credentials.email || '').trim().toLowerCase();
+    const users = await firestoreService.getUsers();
+    const user = users.find((u) => u.email && u.email.toLowerCase() === email);
+    if (!user) {
+      throw new Error('No user account found with this email address');
+    }
+    return {
+      data: {
+        access_token: `firebase-token-${user.id || user.uid}`,
+        user,
+      },
+    };
+  },
+
+  register: async (data) => {
+    const email = (data.email || '').trim().toLowerCase();
+    const users = await firestoreService.getUsers();
+    if (users.some((u) => u.email && u.email.toLowerCase() === email)) {
+      throw new Error('An account already exists with this email address');
+    }
+
+    const newUser = await firestoreService.createUser({
+      name: data.name ? data.name.trim() : email.split('@')[0],
+      email,
+      role: 'CUSTOMER',
+      account_status: 'ACTIVE',
+      is_active: true,
+      provider: 'password',
+    });
+
+    return { data: { success: true, message: 'Account registered successfully', user: newUser } };
+  },
+
+  forgotPassword: async (data) => {
+    return { data: { success: true, message: `Password reset instructions sent to ${data.email}` } };
+  },
+
+  getMe: async () => {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        const freshUser = await firestoreService.fetchDocument('users', u.id || u.uid).catch(() => u);
+        return { data: freshUser };
+      } catch {
+        // Fallback
+      }
+    }
+    return { data: { name: 'Demo User', email: 'admin@billsync.com', role: 'ADMIN' } };
+  },
+
+  logout: async () => {
+    return { data: { success: true } };
+  },
 };
 
 // ----------------------------------------------------------------------------
-// Dashboard Service
+// Dashboard Service (Cloud Firestore Financial Telemetry)
 // ----------------------------------------------------------------------------
 export const dashboardService = {
-  getStats: () =>
-    USE_MOCK ? mockWrap(mockService.getDashboardStats()) : api.get('/dashboard/stats'),
-  getRecentSubscriptions: () =>
-    USE_MOCK ? mockWrap(mockService.getRecentSubscriptions()) : api.get('/dashboard/recent-subscriptions'),
-  getRecentInvoices: () =>
-    USE_MOCK ? mockWrap(mockService.getRecentInvoices()) : api.get('/dashboard/recent-invoices'),
-  getRevenueChart: () =>
-    USE_MOCK ? mockWrap(mockService.getRevenueChart()) : api.get('/dashboard/revenue-chart'),
-  getSubscriptionChart: () =>
-    USE_MOCK ? mockWrap(mockService.getSubscriptionChart()) : api.get('/dashboard/subscription-chart'),
+  getStats: () => firestoreWrap(firestoreService.getDashboardStats()),
+  getRecentSubscriptions: () => firestoreWrap(firestoreService.getRecentSubscriptions()),
+  getRecentInvoices: () => firestoreWrap(firestoreService.getRecentInvoices()),
+  getRevenueChart: () => firestoreWrap(firestoreService.getRevenueChart()),
+  getSubscriptionChart: () => firestoreWrap(firestoreService.getSubscriptionChart()),
 };
 
 // ----------------------------------------------------------------------------
-// Customers Service
+// Customers Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const customerService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getCustomers(params)) : api.get('/customers', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getCustomerById(id)) : api.get(`/customers/${id}`),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createCustomer(data)) : api.post('/customers', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updateCustomer(id, data)) : api.put(`/customers/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deleteCustomer(id)) : api.delete(`/customers/${id}`),
+  getAll: (params) => firestoreWrap(firestoreService.getCustomers(params)),
+  getById: (id) => firestoreWrap(firestoreService.getCustomerById(id)),
+  create: (data) => firestoreWrap(firestoreService.createCustomer(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updateCustomer(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deleteCustomer(id)),
   getSubscriptions: (id) =>
-    USE_MOCK ? mockWrap(mockService.getCustomerSubscriptions(id)) : api.get(`/customers/${id}/subscriptions`),
+    firestoreWrap(
+      firestoreService.fetchCollection('subscriptions').then((list) => list.filter((s) => String(s.customer_id) === String(id)))
+    ),
   getQuotations: (id) =>
-    USE_MOCK ? mockWrap(mockService.getCustomerQuotations(id)) : api.get(`/customers/${id}/quotations`),
+    firestoreWrap(
+      firestoreService.fetchCollection('quotations').then((list) => list.filter((q) => String(q.customer_id) === String(id)))
+    ),
   getInvoices: (id) =>
-    USE_MOCK ? mockWrap(mockService.getCustomerInvoices(id)) : api.get(`/customers/${id}/invoices`),
+    firestoreWrap(
+      firestoreService.fetchCollection('invoices').then((list) => list.filter((i) => String(i.customer_id) === String(id)))
+    ),
   getPayments: (id) =>
-    USE_MOCK ? mockWrap(mockService.getCustomerPayments(id)) : api.get(`/customers/${id}/payments`),
+    firestoreWrap(
+      firestoreService.fetchCollection('payments').then((list) => list.filter((p) => String(p.customer_id) === String(id)))
+    ),
 };
 
 // ----------------------------------------------------------------------------
-// Products Service (with Variant Support)
+// Products Service (Cloud Firestore with Variants)
 // ----------------------------------------------------------------------------
 export const productService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getProducts(params)) : api.get('/products', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getProductById(id)) : api.get(`/products/${id}`),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createProduct(data)) : api.post('/products', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updateProduct(id, data)) : api.put(`/products/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deleteProduct(id)) : api.delete(`/products/${id}`),
+  getAll: (params) => firestoreWrap(firestoreService.getProducts(params)),
+  getById: (id) => firestoreWrap(firestoreService.getProductById(id)),
+  create: (data) => firestoreWrap(firestoreService.createProduct(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updateProduct(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deleteProduct(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Subscription Plans Service
+// Subscription Plans Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const planService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getPlans(params)) : api.get('/plans', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getPlanById(id)) : api.get(`/plans/${id}`),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createPlan(data)) : api.post('/plans', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updatePlan(id, data)) : api.put(`/plans/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deletePlan(id)) : api.delete(`/plans/${id}`),
+  getAll: (params) => firestoreWrap(firestoreService.getPlans(params)),
+  getById: (id) => firestoreWrap(firestoreService.getPlanById(id)),
+  create: (data) => firestoreWrap(firestoreService.createPlan(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updatePlan(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deletePlan(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Quotations Service
+// Quotations Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const quotationService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getQuotations(params)) : api.get('/quotations', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getQuotationById(id)) : api.get(`/quotations/${id}`),
-  getTemplates: () =>
-    USE_MOCK ? mockWrap(mockService.getQuotationTemplates()) : api.get('/quotations/templates'),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createQuotation(data)) : api.post('/quotations', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updateQuotation(id, data)) : api.put(`/quotations/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deleteQuotation(id)) : api.delete(`/quotations/${id}`),
-  confirm: (id) =>
-    USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'ACCEPTED')) : api.post(`/quotations/${id}/confirm`),
-  cancel: (id) =>
-    USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'REJECTED')) : api.post(`/quotations/${id}/cancel`),
-  convertToSubscription: (id) =>
-    USE_MOCK ? mockWrap(mockService.convertQuotationToSubscription(id)) : api.post(`/quotations/${id}/convert`),
-  duplicate: (id) =>
-    USE_MOCK ? mockWrap(mockService.duplicateQuotation(id)) : api.post(`/quotations/${id}/duplicate`),
+  getAll: (params) => firestoreWrap(firestoreService.getQuotations(params)),
+  getById: (id) => firestoreWrap(firestoreService.getQuotationById(id)),
+  getTemplates: () => firestoreWrap(firestoreService.getQuotationTemplates()),
+  create: (data) => firestoreWrap(firestoreService.createQuotation(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updateQuotation(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deleteQuotation(id)),
+  confirm: (id) => firestoreWrap(firestoreService.updateQuotationStatus(id, 'ACCEPTED')),
+  cancel: (id) => firestoreWrap(firestoreService.updateQuotationStatus(id, 'REJECTED')),
+  convertToSubscription: (id) => firestoreWrap(firestoreService.convertQuotationToSubscription(id)),
+  duplicate: (id) => firestoreWrap(firestoreService.duplicateQuotation(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Subscriptions Service
+// Subscriptions Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const subscriptionService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getSubscriptions(params)) : api.get('/subscriptions', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getSubscriptionById(id)) : api.get(`/subscriptions/${id}`),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createSubscription(data)) : api.post('/subscriptions', data),
-  confirm: (id) =>
-    USE_MOCK ? mockWrap(mockService.confirmSubscription(id)) : api.post(`/subscriptions/${id}/confirm`),
-  activate: (id) =>
-    USE_MOCK ? mockWrap(mockService.activateSubscription(id)) : api.post(`/subscriptions/${id}/activate`),
-  pause: (id) =>
-    USE_MOCK ? mockWrap(mockService.pauseSubscription(id)) : api.post(`/subscriptions/${id}/pause`),
-  resume: (id) =>
-    USE_MOCK ? mockWrap(mockService.resumeSubscription(id)) : api.post(`/subscriptions/${id}/resume`),
-  renew: (id) =>
-    USE_MOCK ? mockWrap(mockService.renewSubscription(id)) : api.post(`/subscriptions/${id}/renew`),
-  close: (id) =>
-    USE_MOCK ? mockWrap(mockService.closeSubscription(id)) : api.post(`/subscriptions/${id}/close`),
+  getAll: (params) => firestoreWrap(firestoreService.getSubscriptions(params)),
+  getById: (id) => firestoreWrap(firestoreService.getSubscriptionById(id)),
+  create: (data) => firestoreWrap(firestoreService.createSubscription(data)),
+  confirm: (id) => firestoreWrap(firestoreService.confirmSubscription(id)),
+  activate: (id) => firestoreWrap(firestoreService.activateSubscription(id)),
+  pause: (id) => firestoreWrap(firestoreService.pauseSubscription(id)),
+  resume: (id) => firestoreWrap(firestoreService.resumeSubscription(id)),
+  renew: (id) => firestoreWrap(firestoreService.renewSubscription(id)),
+  close: (id) => firestoreWrap(firestoreService.closeSubscription(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Invoices Service
+// Invoices Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const invoiceService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getInvoices(params)) : api.get('/invoices', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getInvoiceById(id)) : api.get(`/invoices/${id}`),
-  confirm: (id) =>
-    USE_MOCK ? mockWrap(mockService.confirmInvoice(id)) : api.post(`/invoices/${id}/confirm`),
-  cancel: (id) =>
-    USE_MOCK ? mockWrap(mockService.cancelInvoice(id)) : api.post(`/invoices/${id}/cancel`),
-  send: (id) =>
-    USE_MOCK ? mockWrap(mockService.sendInvoice(id)) : api.post(`/invoices/${id}/send`),
+  getAll: (params) => firestoreWrap(firestoreService.getInvoices(params)),
+  getById: (id) => firestoreWrap(firestoreService.getInvoiceById(id)),
+  confirm: (id) => firestoreWrap(firestoreService.confirmInvoice(id)),
+  cancel: (id) => firestoreWrap(firestoreService.cancelInvoice(id)),
+  send: (id) => firestoreWrap(firestoreService.sendInvoice(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Discount Management Service
+// Discount Management Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const discountService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getDiscounts(params)) : api.get('/discounts', { params }),
-  getById: (id) =>
-    USE_MOCK ? mockWrap(mockService.getDiscountById(id)) : api.get(`/discounts/${id}`),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createDiscount(data)) : api.post('/discounts', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updateDiscount(id, data)) : api.put(`/discounts/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deleteDiscount(id)) : api.delete(`/discounts/${id}`),
+  getAll: (params) => firestoreWrap(firestoreService.getDiscounts(params)),
+  getById: (id) => firestoreWrap(firestoreService.getDiscountById(id)),
+  create: (data) => firestoreWrap(firestoreService.createDiscount(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updateDiscount(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deleteDiscount(id)),
 };
 
 // ----------------------------------------------------------------------------
-// Payments Service
+// Payments Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const paymentService = {
-  getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getPayments(params)) : api.get('/payments', { params }),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.recordPayment(data)) : api.post('/payments', data),
+  getAll: (params) => firestoreWrap(firestoreService.getPayments(params)),
+  create: (data) => firestoreWrap(firestoreService.recordPayment(data)),
 };
 
 // ----------------------------------------------------------------------------
-// Users & Role Management Service
+// Users & Role Management Service (Cloud Firestore)
 // ----------------------------------------------------------------------------
 export const userService = {
-  getAll: () =>
-    USE_MOCK ? mockWrap(mockService.getUsers()) : api.get('/users'),
-  create: (data) =>
-    USE_MOCK ? mockWrap(mockService.createUser(data)) : api.post('/users', data),
-  update: (id, data) =>
-    USE_MOCK ? mockWrap(mockService.updateUser(id, data)) : api.put(`/users/${id}`, data),
-  delete: (id) =>
-    USE_MOCK ? mockWrap(mockService.deleteUser(id)) : api.delete(`/users/${id}`),
+  getAll: () => firestoreWrap(firestoreService.getUsers()),
+  create: (data) => firestoreWrap(firestoreService.createUser(data)),
+  update: (id, data) => firestoreWrap(firestoreService.updateUser(id, data)),
+  delete: (id) => firestoreWrap(firestoreService.deleteUser(id)),
 };

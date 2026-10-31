@@ -19,9 +19,7 @@ api.interceptors.request.use((config) => {
 // Handle responses and unwrap APIResponse { success: true, data: ... }
 api.interceptors.response.use(
   (response) => {
-    // If backend uses APIResponse envelope { success: true, data: ... }
     if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
-      // Keep reference to raw wrapper if needed, but make response.data point to the payload
       const unwrap = response.data.data !== null && response.data.data !== undefined ? response.data.data : response.data;
       return {
         ...response,
@@ -43,14 +41,13 @@ api.interceptors.response.use(
   }
 );
 
-// Helper to extract clean error message from backend error responses
+// Helper to extract clean error message from backend error responses or Firestore
 export function getErrorMessage(err, fallback = 'An unexpected error occurred') {
   if (!err) return fallback;
+  if (typeof err === 'string') return err;
   if (err.response?.data) {
     const d = err.response.data;
-    // Standard APIErrorResponse { success: false, error: { message, code, details } }
     if (d.error?.message) return d.error.message;
-    // FastAPI HTTP standard { detail: string | array }
     if (typeof d.detail === 'string') return d.detail;
     if (Array.isArray(d.detail) && d.detail.length > 0) {
       return d.detail.map((e) => e.msg || e.message).join(', ');
