@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { PageSpinner } from './ui/Feedback';
 
 export function ProtectedRoute({ children, allowedRoles }) {
-  const { user, loading } = useAuth();
+  const { user, loading, roleUpper } = useAuth();
   const location = useLocation();
 
   if (loading) return <PageSpinner />;
@@ -12,22 +12,24 @@ export function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+  if (allowedRoles) {
+    const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
+    if (!normalizedAllowed.includes(roleUpper)) {
+      return <Navigate to={roleUpper === 'CUSTOMER' ? '/subscriptions' : '/'} replace />;
+    }
   }
 
   return children;
 }
 
 export function GuestRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, roleUpper } = useAuth();
 
   if (loading) return <PageSpinner />;
 
   if (user) {
-    return <Navigate to={user.role === 'customer' ? '/subscriptions' : '/'} replace />;
+    return <Navigate to={roleUpper === 'CUSTOMER' ? '/subscriptions' : '/'} replace />;
   }
 
   return children;
 }
-
