@@ -35,7 +35,9 @@ class InvoiceGenerateRequest(BaseModel):
     billing_period_start: Optional[datetime] = Field(None, description="Billing cycle start")
     billing_period_end: Optional[datetime] = Field(None, description="Billing cycle end")
     tax_rate: Optional[Decimal] = Field(None, ge=0, le=100, description="Tax rate override percentage")
-    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=0, description="Optional discount amount")
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=0, description="Optional manual discount amount")
+    discount_id: Optional[uuid.UUID] = Field(None, description="Optional Discount entity UUID to apply")
+    discount_code: Optional[str] = Field(None, description="Optional promo code or discount policy name")
 
 
 class InvoiceResponse(BaseModel):
@@ -46,6 +48,7 @@ class InvoiceResponse(BaseModel):
     invoice_number: str
     customer_id: uuid.UUID
     subscription_id: Optional[uuid.UUID]
+    discount_id: Optional[uuid.UUID] = None
     billing_period_start: datetime
     billing_period_end: datetime
     status: InvoiceStatus
@@ -72,7 +75,7 @@ class CustomerBrief(BaseModel):
 
 
 class InvoiceDetailResponse(InvoiceResponse):
-    """Detailed invoice response with line items and customer information."""
+    """Detailed invoice response with line items, customer, and discount info."""
     customer: Optional[CustomerBrief] = None
     items: List[InvoiceItemResponse] = []
 

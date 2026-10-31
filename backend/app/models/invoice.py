@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.product import Product
     from app.models.subscription import Subscription
     from app.models.payment import Payment
+    from app.models.discount import Discount
 
 
 class Invoice(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -61,9 +62,17 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
     )
 
+    discount_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("discounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
     # Relationships
     customer: Mapped["Customer"] = relationship("Customer", back_populates="invoices")
     subscription: Mapped[Optional["Subscription"]] = relationship("Subscription", back_populates="invoices")
+    discount: Mapped[Optional["Discount"]] = relationship("Discount")
     items: Mapped[List["InvoiceItem"]] = relationship(
         "InvoiceItem",
         back_populates="invoice",

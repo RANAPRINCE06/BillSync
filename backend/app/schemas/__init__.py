@@ -12,6 +12,14 @@ from app.schemas.invoice import (
     InvoiceDetailResponse,
     InvoiceListResponse,
 )
+from app.schemas.discount import (
+    DiscountCreate,
+    DiscountUpdate,
+    DiscountResponse,
+    DiscountListResponse,
+    DiscountValidateRequest,
+    DiscountValidateResponse,
+)
 
 __all__ = [
     "APIResponse",
@@ -37,4 +45,10 @@ __all__ = [
     "InvoiceResponse",
     "InvoiceDetailResponse",
     "InvoiceListResponse",
+    "DiscountCreate",
+    "DiscountUpdate",
+    "DiscountResponse",
+    "DiscountListResponse",
+    "DiscountValidateRequest",
+    "DiscountValidateResponse",
 ]

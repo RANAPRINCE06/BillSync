@@ -18,6 +18,8 @@ from app.models.invoice import Invoice, InvoiceItem
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.schemas.invoice import InvoiceGenerateRequest
+from app.services.discount_service import DiscountService
+from app.services.tax_service import TaxService
 
 
 class InvoiceService:
@@ -111,18 +113,12 @@ class InvoiceService:
                 }
             )
 
-        # 7. Calculate Line Items and Historical Snapshots
-        subtotal = Decimal("0.00")
-        tax_amount = Decimal("0.00")
+        # 7. Calculate Line Items and Historical Snapshots using TaxService
+        tax_rate = TaxService.validate_tax_rate(payload.tax_rate)
         invoice_items: List[InvoiceItem] = []
-
-        tax_rate = payload.tax_rate if payload.tax_rate is not None else Decimal("0.00")
-        if tax_rate < Decimal("0.00") or tax_rate > Decimal("100.00"):
-            raise BadRequestException("Tax rate must be between 0 and 100 percent.")
-
-        discount_amount = payload.discount_amount or Decimal("0.00")
-        if discount_amount < Decimal("0.00"):
-            raise BadRequestException("Discount amount cannot be negative.")
+        item_tuples = []
+        item_taxes: List[Decimal] = []
+        total_quantity = 0
 
         for item in subscription.items:
             if item.quantity <= 0:
@@ -130,12 +126,11 @@ class InvoiceService:
             if item.unit_price < Decimal("0.00"):
                 raise BadRequestException(f"Invalid unit price {item.unit_price} for subscription item {item.id}.")
 
-            line_subtotal = (Decimal(item.quantity) * item.unit_price).quantize(Decimal("0.01"))
-            line_tax = ((line_subtotal * tax_rate) / Decimal("100.00")).quantize(Decimal("0.01"))
-            line_total = (line_subtotal + line_tax).quantize(Decimal("0.01"))
-
-            subtotal += line_subtotal
-            tax_amount += line_tax
+            line_tax = TaxService.calculate_item_tax(item.unit_price, item.quantity, tax_rate)
+            line_total = TaxService.calculate_item_line_total(item.unit_price, item.quantity, tax_rate)
+            item_tuples.append((item.unit_price, item.quantity))
+            item_taxes.append(line_tax)
+            total_quantity += item.quantity
 
             # Fetch product description if available
             desc = "Subscription Service Item"
@@ -152,18 +147,53 @@ class InvoiceService:
             )
             invoice_items.append(inv_item)
 
+        subtotal = TaxService.calculate_subtotal(item_tuples)
+        tax_amount = TaxService.calculate_invoice_tax(item_taxes)
+
+        # 8. Resolve and apply discount using DiscountService
+        applied_discount_id = None
+        discount_entity = None
+
+        if payload.discount_id:
+            discount_entity = DiscountService.get_discount_by_id(db, payload.discount_id)
+        elif payload.discount_code:
+            discount_entity = DiscountService.get_discount_by_name(db, payload.discount_code)
+            if not discount_entity:
+                raise NotFoundException(f"Discount with code '{payload.discount_code}' not found.")
+
+        if discount_entity:
+            discount_amount = DiscountService.validate_discount_entity(
+                discount_entity,
+                subtotal=subtotal,
+                total_quantity=total_quantity,
+                at_time=issue_date
+            )
+            DiscountService.consume_discount_usage(discount_entity)
+            applied_discount_id = discount_entity.id
+        elif payload.discount_amount is not None:
+            discount_amount = TaxService.to_decimal(payload.discount_amount, "Discount amount")
+            if discount_amount < Decimal("0.00"):
+                raise BadRequestException("Discount amount cannot be negative.")
+            if discount_amount > subtotal:
+                raise BadRequestException(
+                    f"Fixed discount of {discount_amount} cannot exceed eligible subtotal of {subtotal}."
+                )
+        else:
+            discount_amount = Decimal("0.00")
+
         total = max(Decimal("0.00"), (subtotal + tax_amount - discount_amount).quantize(Decimal("0.01")))
         balance_due = total
         amount_paid = Decimal("0.00")
 
-        # 8. Generate Unique Invoice Number
+        # 9. Generate Unique Invoice Number
         invoice_num = f"INV-{datetime.now(timezone.utc).strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
 
-        # 9. Create Invoice Entity
+        # 10. Create Invoice Entity
         invoice = Invoice(
             invoice_number=invoice_num,
             customer_id=subscription.customer_id,
             subscription_id=subscription.id,
+            discount_id=applied_discount_id,
             billing_period_start=billing_period_start,
             billing_period_end=billing_period_end,
             status=InvoiceStatus.CONFIRMED,
@@ -249,7 +279,8 @@ class InvoiceService:
             .where(Invoice.id == invoice_id)
             .options(
                 selectinload(Invoice.items),
-                selectinload(Invoice.customer)
+                selectinload(Invoice.customer),
+                selectinload(Invoice.discount)
             )
         )
         invoice = db.scalars(stmt).first()
