@@ -88,6 +88,8 @@ def create_application() -> FastAPI:
 
     # Register API Routers
     application.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    if settings.API_V1_PREFIX != "/api/v1":
+        application.include_router(api_router, prefix="/api/v1")
 
     # Root Endpoint
     @application.get(

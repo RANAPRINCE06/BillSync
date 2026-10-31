@@ -61,6 +61,16 @@ class ForbiddenException(AppException):
         )
 
 
+class ConflictException(AppException):
+    def __init__(self, message: str = "Resource conflict", details: Optional[Any] = None):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_409_CONFLICT,
+            code="CONFLICT",
+            details=details
+        )
+
+
 class DatabaseConnectionException(AppException):
     def __init__(self, message: str = "Database connection error", details: Optional[Any] = None):
         super().__init__(
