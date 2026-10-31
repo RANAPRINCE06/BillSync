@@ -37,3 +37,12 @@ class ProductResponse(ProductBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+
+class ProductListResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[ProductResponse]
+    total: int
+    page: int
+    size: int

@@ -29,3 +29,12 @@ class CustomerResponse(CustomerBase):
     user_id: Optional[uuid.UUID]
     created_at: datetime
     updated_at: datetime
+
+
+class CustomerListResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[CustomerResponse]
+    total: int
+    page: int
+    size: int

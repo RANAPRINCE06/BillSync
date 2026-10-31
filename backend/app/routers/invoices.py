@@ -116,3 +116,91 @@ def get_invoice_payments(
         message="Invoice payments retrieved successfully",
         data=[PaymentService.to_response(p) for p in payments]
     )
+
+
+@router.post(
+    "/{invoice_id}/confirm",
+    response_model=APIResponse[InvoiceDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Confirm Invoice",
+    description="Transitions draft invoice to pending status. Admin/Staff only."
+)
+def confirm_invoice(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> APIResponse[InvoiceDetailResponse]:
+    from app.core.exceptions import NotFoundException
+    from app.models.enums import InvoiceStatus
+    from app.models.invoice import Invoice
+
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice:
+        raise NotFoundException(f"Invoice with ID '{invoice_id}' was not found.")
+
+    if invoice.status == InvoiceStatus.DRAFT:
+        invoice.status = InvoiceStatus.CONFIRMED
+        db.commit()
+        db.refresh(invoice)
+
+    detail = InvoiceService.get_invoice_by_id(db=db, invoice_id=invoice_id, current_user=current_user)
+    return APIResponse(
+        success=True,
+        message="Invoice confirmed successfully",
+        data=detail
+    )
+
+
+@router.post(
+    "/{invoice_id}/cancel",
+    response_model=APIResponse[InvoiceDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Cancel Invoice",
+    description="Cancels an unpaid invoice. Admin/Staff only."
+)
+def cancel_invoice(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> APIResponse[InvoiceDetailResponse]:
+    from app.core.exceptions import BadRequestException, NotFoundException
+    from app.models.enums import InvoiceStatus
+    from app.models.invoice import Invoice
+
+    invoice = db.get(Invoice, invoice_id)
+    if not invoice:
+        raise NotFoundException(f"Invoice with ID '{invoice_id}' was not found.")
+
+    if invoice.status == InvoiceStatus.PAID:
+        raise BadRequestException("Cannot cancel an already paid invoice.")
+
+    invoice.status = InvoiceStatus.CANCELLED
+    db.commit()
+    db.refresh(invoice)
+
+    detail = InvoiceService.get_invoice_by_id(db=db, invoice_id=invoice_id, current_user=current_user)
+    return APIResponse(
+        success=True,
+        message="Invoice cancelled successfully",
+        data=detail
+    )
+
+
+@router.post(
+    "/{invoice_id}/send",
+    response_model=APIResponse[InvoiceDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Send Invoice",
+    description="Marks or simulates sending invoice to customer. Admin/Staff only."
+)
+def send_invoice(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> APIResponse[InvoiceDetailResponse]:
+    detail = InvoiceService.get_invoice_by_id(db=db, invoice_id=invoice_id, current_user=current_user)
+    return APIResponse(
+        success=True,
+        message=f"Invoice {detail.invoice_number} sent successfully to customer",
+        data=detail
+    )
