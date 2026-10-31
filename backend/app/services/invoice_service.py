@@ -313,7 +313,9 @@ class InvoiceService:
             .options(
                 selectinload(Invoice.items),
                 selectinload(Invoice.customer),
-                selectinload(Invoice.discount)
+                selectinload(Invoice.discount),
+                selectinload(Invoice.payments),
+                selectinload(Invoice.subscription)
             )
         )
         invoice = db.scalars(stmt).first()
@@ -326,3 +328,24 @@ class InvoiceService:
                 raise ForbiddenException("You do not have permission to view this invoice.")
 
         return invoice
+
+    @classmethod
+    def get_invoice_pdf(
+        cls,
+        db: Session,
+        invoice_id: uuid.UUID,
+        current_user: Optional[User] = None,
+        logo_path: Optional[str] = None
+    ) -> Tuple[bytes, str]:
+        """
+        Retrieves the invoice with permissions check, renders the PDF document,
+        and returns a tuple of (pdf_bytes, filename).
+        Does not mutate invoice or payment records.
+        """
+        from app.services.pdf_service import InvoicePDFService
+
+        invoice = cls.get_invoice_by_id(db=db, invoice_id=invoice_id, current_user=current_user)
+        pdf_bytes = InvoicePDFService.generate_pdf(invoice=invoice, logo_path=logo_path)
+        filename = f"Invoice-{invoice.invoice_number}.pdf"
+        return pdf_bytes, filename
+
