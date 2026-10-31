@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -13,7 +13,10 @@ from app.schemas.invoice import (
     InvoiceListResponse,
     InvoiceResponse,
 )
+from app.schemas.payment import PaymentResponse
+from app.schemas.response import APIResponse
 from app.services.invoice_service import InvoiceService
+from app.services.payment_service import PaymentService
 
 router = APIRouter(prefix="/invoices", tags=["Invoices & Billing"])
 
@@ -88,3 +91,28 @@ def get_invoice_by_id(
         current_user=current_user
     )
     return invoice
+
+
+@router.get(
+    "/{invoice_id}/payments",
+    response_model=APIResponse[List[PaymentResponse]],
+    status_code=status.HTTP_200_OK,
+    summary="Get Invoice Payments",
+    description="Retrieve all payment records recorded against a specific invoice. Customers can only view their own invoice payments."
+)
+def get_invoice_payments(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> APIResponse[List[PaymentResponse]]:
+    """Retrieve all payment records for an invoice."""
+    payments = PaymentService.list_invoice_payments(
+        db=db,
+        invoice_id=invoice_id,
+        current_user=current_user
+    )
+    return APIResponse(
+        success=True,
+        message="Invoice payments retrieved successfully",
+        data=[PaymentService.to_response(p) for p in payments]
+    )
