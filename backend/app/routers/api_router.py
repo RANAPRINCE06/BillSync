@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.routers import health, invoices, discounts
+from app.routers import health, invoices, discounts, billing
 
 api_router = APIRouter()
 
@@ -7,3 +7,4 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(invoices.router)
 api_router.include_router(discounts.router)
+api_router.include_router(billing.router)
