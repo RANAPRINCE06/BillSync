@@ -64,6 +64,15 @@ class RevenueChartResponse(BaseModel):
     total_revenue: Decimal = Decimal("0.00")
 
 
+class SubscriptionChartPoint(BaseModel):
+    """Monthly subscription and renewal trend data point."""
+    model_config = ConfigDict(from_attributes=True)
+
+    month: str = Field(..., description="Month label e.g. 'Oct 2026'")
+    subscriptions: int = Field(default=0, description="Active subscription count")
+    renewals: int = Field(default=0, description="Renewals / recurring cycles count")
+
+
 class ActivityType(str, Enum):
     INVOICE_GENERATED = "INVOICE_GENERATED"
     PAYMENT_RECEIVED = "PAYMENT_RECEIVED"

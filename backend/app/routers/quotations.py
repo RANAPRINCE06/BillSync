@@ -259,3 +259,28 @@ def convert_quotation_to_subscription(
         message="Quotation converted into active recurring subscription successfully",
         data=SubscriptionService.to_response(sub)
     )
+
+
+@router.post(
+    "/{quotation_id}/duplicate",
+    response_model=APIResponse[QuotationResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Duplicate Quotation",
+    description="Creates a new draft copy of an existing quotation. Admin/Staff only."
+)
+def duplicate_quotation(
+    quotation_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_staff)
+) -> APIResponse[QuotationResponse]:
+    """Duplicate quotation as a new draft."""
+    cloned = QuotationService.duplicate_quotation(
+        db=db,
+        quotation_id=quotation_id,
+        current_user=current_user
+    )
+    return APIResponse(
+        success=True,
+        message=f"Quotation duplicated successfully as {cloned.quotation_number}",
+        data=QuotationService.to_response(cloned)
+    )
