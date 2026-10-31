@@ -1,88 +1,170 @@
 import api from './api';
+import { mockService } from './mockService';
 
-// Auth
+// Flag to control mock mode vs live API.
+// Phase 3 requirement: Complete frontend with temporary mock data first before starting API integration.
+const USE_MOCK = true;
+
+// Helper to wrap mock results in standard Axios-like { data: ... } envelope
+const mockWrap = async (promise) => {
+  const result = await promise;
+  return { data: result };
+};
+
+// ----------------------------------------------------------------------------
+// Authentication Service
+// ----------------------------------------------------------------------------
 export const authService = {
-  login: (data) => api.post('/auth/login', data),
-  register: (data) => api.post('/auth/register', data),
-  forgotPassword: (data) => api.post('/auth/forgot-password', data),
-  getMe: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout'),
+  login: (data) =>
+    USE_MOCK ? mockWrap(Promise.resolve({ access_token: `demo-token-${data.email}`, user: { name: 'Demo User', email: data.email, role: 'ADMIN' } })) : api.post('/auth/login', data),
+  register: (data) =>
+    USE_MOCK ? mockWrap(Promise.resolve({ success: true, message: 'Account registered' })) : api.post('/auth/register', data),
+  forgotPassword: (data) =>
+    USE_MOCK ? mockWrap(Promise.resolve({ success: true, message: 'Reset email sent' })) : api.post('/auth/forgot-password', data),
+  getMe: () =>
+    USE_MOCK ? mockWrap(Promise.resolve({ name: 'Rudra Chauhan', email: 'admin@billsync.com', role: 'ADMIN' })) : api.get('/auth/me'),
+  logout: () =>
+    USE_MOCK ? mockWrap(Promise.resolve({ success: true })) : api.post('/auth/logout'),
 };
 
-// Dashboard
+// ----------------------------------------------------------------------------
+// Dashboard Service
+// ----------------------------------------------------------------------------
 export const dashboardService = {
-  getStats: () => api.get('/dashboard/stats'),
-  getRecentSubscriptions: () => api.get('/dashboard/recent-subscriptions'),
-  getRecentInvoices: () => api.get('/dashboard/recent-invoices'),
-  getRevenueChart: () => api.get('/dashboard/revenue-chart'),
+  getStats: () =>
+    USE_MOCK ? mockWrap(mockService.getDashboardStats()) : api.get('/dashboard/stats'),
+  getRecentSubscriptions: () =>
+    USE_MOCK ? mockWrap(mockService.getRecentSubscriptions()) : api.get('/dashboard/recent-subscriptions'),
+  getRecentInvoices: () =>
+    USE_MOCK ? mockWrap(mockService.getRecentInvoices()) : api.get('/dashboard/recent-invoices'),
+  getRevenueChart: () =>
+    USE_MOCK ? mockWrap(mockService.getRevenueChart()) : api.get('/dashboard/revenue-chart'),
 };
 
-// Customers
+// ----------------------------------------------------------------------------
+// Customers Service
+// ----------------------------------------------------------------------------
 export const customerService = {
-  getAll: (params) => api.get('/customers', { params }),
-  getById: (id) => api.get(`/customers/${id}`),
-  create: (data) => api.post('/customers', data),
-  update: (id, data) => api.put(`/customers/${id}`, data),
-  delete: (id) => api.delete(`/customers/${id}`),
-  getSubscriptions: (id) => api.get(`/customers/${id}/subscriptions`),
-  getInvoices: (id) => api.get(`/customers/${id}/invoices`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getCustomers(params)) : api.get('/customers', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getCustomerById(id)) : api.get(`/customers/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createCustomer(data)) : api.post('/customers', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updateCustomer(id, data)) : api.put(`/customers/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deleteCustomer(id)) : api.delete(`/customers/${id}`),
+  getSubscriptions: (id) =>
+    USE_MOCK ? mockWrap(mockService.getCustomerSubscriptions(id)) : api.get(`/customers/${id}/subscriptions`),
+  getInvoices: (id) =>
+    USE_MOCK ? mockWrap(mockService.getCustomerInvoices(id)) : api.get(`/customers/${id}/invoices`),
 };
 
-// Products
+// ----------------------------------------------------------------------------
+// Products Service (with Variant Support)
+// ----------------------------------------------------------------------------
 export const productService = {
-  getAll: (params) => api.get('/products', { params }),
-  getById: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
-  delete: (id) => api.delete(`/products/${id}`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getProducts(params)) : api.get('/products', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getProductById(id)) : api.get(`/products/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createProduct(data)) : api.post('/products', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updateProduct(id, data)) : api.put(`/products/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deleteProduct(id)) : api.delete(`/products/${id}`),
 };
 
-// Subscription Plans
+// ----------------------------------------------------------------------------
+// Subscription Plans Service
+// ----------------------------------------------------------------------------
 export const planService = {
-  getAll: (params) => api.get('/plans', { params }),
-  getById: (id) => api.get(`/plans/${id}`),
-  create: (data) => api.post('/plans', data),
-  update: (id, data) => api.put(`/plans/${id}`, data),
-  delete: (id) => api.delete(`/plans/${id}`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getPlans()) : api.get('/plans', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getPlanById(id)) : api.get(`/plans/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createPlan(data)) : api.post('/plans', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updatePlan(id, data)) : api.put(`/plans/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deletePlan(id)) : api.delete(`/plans/${id}`),
 };
 
-// Quotations
+// ----------------------------------------------------------------------------
+// Quotations Service
+// ----------------------------------------------------------------------------
 export const quotationService = {
-  getAll: (params) => api.get('/quotations', { params }),
-  getById: (id) => api.get(`/quotations/${id}`),
-  create: (data) => api.post('/quotations', data),
-  update: (id, data) => api.put(`/quotations/${id}`, data),
-  delete: (id) => api.delete(`/quotations/${id}`),
-  convertToSubscription: (id) => api.post(`/quotations/${id}/convert`),
-  confirm: (id) => api.post(`/quotations/${id}/confirm`),
-  cancel: (id) => api.post(`/quotations/${id}/cancel`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getQuotations()) : api.get('/quotations', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getQuotationById(id)) : api.get(`/quotations/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createQuotation(data)) : api.post('/quotations', data),
+  confirm: (id) =>
+    USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'ACCEPTED')) : api.post(`/quotations/${id}/confirm`),
+  cancel: (id) =>
+    USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'REJECTED')) : api.post(`/quotations/${id}/cancel`),
+  convertToSubscription: (id) =>
+    USE_MOCK ? mockWrap(mockService.convertQuotationToSubscription(id)) : api.post(`/quotations/${id}/convert`),
 };
 
-// Subscriptions
+// ----------------------------------------------------------------------------
+// Subscriptions Service
+// ----------------------------------------------------------------------------
 export const subscriptionService = {
-  getAll: (params) => api.get('/subscriptions', { params }),
-  getById: (id) => api.get(`/subscriptions/${id}`),
-  create: (data) => api.post('/subscriptions', data),
-  update: (id, data) => api.put(`/subscriptions/${id}`, data),
-  pause: (id) => api.post(`/subscriptions/${id}/pause`),
-  renew: (id) => api.post(`/subscriptions/${id}/renew`),
-  close: (id) => api.post(`/subscriptions/${id}/close`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getSubscriptions()) : api.get('/subscriptions', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getSubscriptionById(id)) : api.get(`/subscriptions/${id}`),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createSubscription(data)) : api.post('/subscriptions', data),
+  pause: (id) =>
+    USE_MOCK ? mockWrap(mockService.pauseSubscription(id)) : api.post(`/subscriptions/${id}/pause`),
+  renew: (id) =>
+    USE_MOCK ? mockWrap(mockService.renewSubscription(id)) : api.post(`/subscriptions/${id}/renew`),
+  close: (id) =>
+    USE_MOCK ? mockWrap(mockService.closeSubscription(id)) : api.post(`/subscriptions/${id}/close`),
 };
 
-// Invoices
+// ----------------------------------------------------------------------------
+// Invoices Service
+// ----------------------------------------------------------------------------
 export const invoiceService = {
-  getAll: (params) => api.get('/invoices', { params }),
-  getById: (id) => api.get(`/invoices/${id}`),
-  create: (data) => api.post('/invoices', data),
-  confirm: (id) => api.post(`/invoices/${id}/confirm`),
-  cancel: (id) => api.post(`/invoices/${id}/cancel`),
-  send: (id) => api.post(`/invoices/${id}/send`),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getInvoices()) : api.get('/invoices', { params }),
+  getById: (id) =>
+    USE_MOCK ? mockWrap(mockService.getInvoiceById(id)) : api.get(`/invoices/${id}`),
+  confirm: (id) =>
+    USE_MOCK ? mockWrap(mockService.confirmInvoice(id)) : api.post(`/invoices/${id}/confirm`),
+  cancel: (id) =>
+    USE_MOCK ? mockWrap(mockService.cancelInvoice(id)) : api.post(`/invoices/${id}/cancel`),
+  send: (id) =>
+    USE_MOCK ? mockWrap(mockService.sendInvoice(id)) : api.post(`/invoices/${id}/send`),
 };
 
-// Payments
+// ----------------------------------------------------------------------------
+// Payments Service
+// ----------------------------------------------------------------------------
 export const paymentService = {
-  getAll: (params) => api.get('/payments', { params }),
-  getById: (id) => api.get(`/payments/${id}`),
-  create: (data) => api.post('/payments', data),
+  getAll: (params) =>
+    USE_MOCK ? mockWrap(mockService.getPayments()) : api.get('/payments', { params }),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.recordPayment(data)) : api.post('/payments', data),
 };
 
+// ----------------------------------------------------------------------------
+// Users & Role Management Service
+// ----------------------------------------------------------------------------
+export const userService = {
+  getAll: () =>
+    USE_MOCK ? mockWrap(mockService.getUsers()) : api.get('/users'),
+  create: (data) =>
+    USE_MOCK ? mockWrap(mockService.createUser(data)) : api.post('/users', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updateUser(id, data)) : api.put(`/users/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deleteUser(id)) : api.delete(`/users/${id}`),
+};

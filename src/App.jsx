@@ -9,8 +9,9 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
-// Dashboard
+// Dashboard & Customer Portal
 import DashboardPage from './pages/dashboard/DashboardPage';
+import CustomerPortalPage from './pages/portal/CustomerPortalPage';
 
 // Customers
 import CustomersPage from './pages/customers/CustomersPage';
@@ -39,7 +40,8 @@ import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage';
 // Payments
 import PaymentsPage from './pages/payments/PaymentsPage';
 
-// Settings
+// Users & Settings
+import UsersPage from './pages/users/UsersPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
 export default function App() {
@@ -53,89 +55,111 @@ export default function App() {
             <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
             <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
 
-            {/* Protected routes — dashboard layout */}
+            {/* Protected routes wrapped in common Dashboard layout */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              {/* Admin + Staff */}
+              {/* Dashboard (Admin & Staff) */}
               <Route path="/" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <DashboardPage />
                 </ProtectedRoute>
               } />
 
+              {/* Customer Portal (Customer & Admin) */}
+              <Route path="/portal" element={
+                <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                  <CustomerPortalPage />
+                </ProtectedRoute>
+              } />
+
+              {/* Customers Module */}
               <Route path="/customers" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <CustomersPage />
                 </ProtectedRoute>
               } />
               <Route path="/customers/:id" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <CustomerDetailPage />
                 </ProtectedRoute>
               } />
 
+              {/* Products & Variants */}
               <Route path="/products" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <ProductsPage />
                 </ProtectedRoute>
               } />
 
+              {/* Subscription Plans */}
               <Route path="/plans" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <PlansPage />
                 </ProtectedRoute>
               } />
 
+              {/* Quotations Module */}
               <Route path="/quotations" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <QuotationsPage />
                 </ProtectedRoute>
               } />
               <Route path="/quotations/new" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <QuotationFormPage />
                 </ProtectedRoute>
               } />
               <Route path="/quotations/:id" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <QuotationDetailPage />
                 </ProtectedRoute>
               } />
 
+              {/* Subscriptions Module */}
               <Route path="/subscriptions" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff', 'customer']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <SubscriptionsPage />
                 </ProtectedRoute>
               } />
               <Route path="/subscriptions/new" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
                   <SubscriptionFormPage />
                 </ProtectedRoute>
               } />
               <Route path="/subscriptions/:id" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff', 'customer']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <SubscriptionDetailPage />
                 </ProtectedRoute>
               } />
 
+              {/* Invoices Module */}
               <Route path="/invoices" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff', 'customer']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <InvoicesPage />
                 </ProtectedRoute>
               } />
               <Route path="/invoices/:id" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff', 'customer']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <InvoiceDetailPage />
                 </ProtectedRoute>
               } />
 
+              {/* Payments Module */}
               <Route path="/payments" element={
-                <ProtectedRoute allowedRoles={['admin', 'staff', 'customer']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF', 'CUSTOMER']}>
                   <PaymentsPage />
                 </ProtectedRoute>
               } />
 
+              {/* User & Role Management (Admin only) */}
+              <Route path="/users" element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <UsersPage />
+                </ProtectedRoute>
+              } />
+
+              {/* Settings (Admin only) */}
               <Route path="/settings" element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['ADMIN']}>
                   <SettingsPage />
                 </ProtectedRoute>
               } />

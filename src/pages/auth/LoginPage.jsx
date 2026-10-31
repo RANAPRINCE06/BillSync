@@ -35,7 +35,7 @@ export default function LoginPage() {
     setForm({ email: acc.email, password: acc.pass });
     const user = loginAsDemo(acc.role);
     addToast(`Signed in as demo ${acc.role}!`, 'success');
-    navigate(user.role === 'CUSTOMER' ? '/subscriptions' : '/');
+    navigate(user.role === 'CUSTOMER' ? '/portal' : '/');
   };
 
   const handleSubmit = async (e) => {
@@ -53,7 +53,7 @@ export default function LoginPage() {
       });
       addToast('Welcome back to BillSync!', 'success');
       const role = (user?.role || '').toUpperCase();
-      navigate(role === 'CUSTOMER' ? '/subscriptions' : '/');
+      navigate(role === 'CUSTOMER' ? '/portal' : '/');
     } catch (err) {
       const msg = getErrorMessage(err, 'Invalid email or password');
       addToast(msg, 'error');

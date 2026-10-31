@@ -1,0 +1,561 @@
+import { getMockStore, saveMockStore } from '../data/mockData';
+
+// Simulated latency helper
+const delay = (ms = 80) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Helper to generate UUIDs / IDs
+const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 4)}`;
+
+export const mockService = {
+  // --------------------------------------------------------------------------
+  // Dashboard Metrics
+  // --------------------------------------------------------------------------
+  async getDashboardStats() {
+    await delay();
+    const store = getMockStore();
+    const active_subscriptions = store.subscriptions.filter((s) => s.status === 'ACTIVE').length;
+    const total_customers = store.customers.length;
+    const revenue_received = store.payments
+      .filter((p) => p.status === 'SUCCESSFUL')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const outstanding_payments = store.invoices
+      .filter((i) => i.status !== 'CANCELLED' && i.status !== 'PAID')
+      .reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
+    const overdue_invoices = store.invoices.filter((i) => i.status === 'OVERDUE').length;
+
+    return {
+      active_subscriptions,
+      total_customers,
+      revenue_received,
+      outstanding_payments,
+      overdue_invoices,
+    };
+  },
+
+  async getRecentSubscriptions() {
+    await delay();
+    const store = getMockStore();
+    return [...store.subscriptions].reverse().slice(0, 5);
+  },
+
+  async getRecentInvoices() {
+    await delay();
+    const store = getMockStore();
+    return [...store.invoices].reverse().slice(0, 5);
+  },
+
+  async getRevenueChart() {
+    await delay();
+    const store = getMockStore();
+    return store.revenue_chart || [];
+  },
+
+  // --------------------------------------------------------------------------
+  // Customers
+  // --------------------------------------------------------------------------
+  async getCustomers(params = {}) {
+    await delay();
+    const store = getMockStore();
+    let list = [...store.customers];
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          (c.phone && c.phone.includes(q))
+      );
+    }
+    return list;
+  },
+
+  async getCustomerById(id) {
+    await delay();
+    const store = getMockStore();
+    const customer = store.customers.find((c) => String(c.id) === String(id));
+    if (!customer) throw new Error('Customer not found');
+    return customer;
+  },
+
+  async createCustomer(data) {
+    await delay();
+    const store = getMockStore();
+    const newCustomer = {
+      id: uid('cust'),
+      ...data,
+      created_at: new Date().toISOString(),
+    };
+    store.customers.unshift(newCustomer);
+    saveMockStore(store);
+    return newCustomer;
+  },
+
+  async updateCustomer(id, data) {
+    await delay();
+    const store = getMockStore();
+    const index = store.customers.findIndex((c) => String(c.id) === String(id));
+    if (index === -1) throw new Error('Customer not found');
+    store.customers[index] = { ...store.customers[index], ...data, updated_at: new Date().toISOString() };
+    saveMockStore(store);
+    return store.customers[index];
+  },
+
+  async deleteCustomer(id) {
+    await delay();
+    const store = getMockStore();
+    store.customers = store.customers.filter((c) => String(c.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
+  },
+
+  async getCustomerSubscriptions(customerId) {
+    await delay();
+    const store = getMockStore();
+    return store.subscriptions.filter((s) => String(s.customer_id) === String(customerId));
+  },
+
+  async getCustomerInvoices(customerId) {
+    await delay();
+    const store = getMockStore();
+    return store.invoices.filter((i) => String(i.customer_id) === String(customerId));
+  },
+
+  // --------------------------------------------------------------------------
+  // Products & Variants
+  // --------------------------------------------------------------------------
+  async getProducts(params = {}) {
+    await delay();
+    const store = getMockStore();
+    let list = [...store.products];
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  },
+
+  async getProductById(id) {
+    await delay();
+    const store = getMockStore();
+    const prod = store.products.find((p) => String(p.id) === String(id));
+    if (!prod) throw new Error('Product not found');
+    return prod;
+  },
+
+  async createProduct(data) {
+    await delay();
+    const store = getMockStore();
+    const newProduct = {
+      id: uid('prod'),
+      variants: data.variants || [],
+      ...data,
+      created_at: new Date().toISOString(),
+    };
+    store.products.unshift(newProduct);
+    saveMockStore(store);
+    return newProduct;
+  },
+
+  async updateProduct(id, data) {
+    await delay();
+    const store = getMockStore();
+    const index = store.products.findIndex((p) => String(p.id) === String(id));
+    if (index === -1) throw new Error('Product not found');
+    store.products[index] = { ...store.products[index], ...data, updated_at: new Date().toISOString() };
+    saveMockStore(store);
+    return store.products[index];
+  },
+
+  async deleteProduct(id) {
+    await delay();
+    const store = getMockStore();
+    store.products = store.products.filter((p) => String(p.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
+  },
+
+  // --------------------------------------------------------------------------
+  // Subscription Plans
+  // --------------------------------------------------------------------------
+  async getPlans() {
+    await delay();
+    const store = getMockStore();
+    return [...store.plans];
+  },
+
+  async getPlanById(id) {
+    await delay();
+    const store = getMockStore();
+    const plan = store.plans.find((p) => String(p.id) === String(id));
+    if (!plan) throw new Error('Plan not found');
+    return plan;
+  },
+
+  async createPlan(data) {
+    await delay();
+    const store = getMockStore();
+    const newPlan = {
+      id: uid('plan'),
+      ...data,
+      created_at: new Date().toISOString(),
+    };
+    store.plans.unshift(newPlan);
+    saveMockStore(store);
+    return newPlan;
+  },
+
+  async updatePlan(id, data) {
+    await delay();
+    const store = getMockStore();
+    const index = store.plans.findIndex((p) => String(p.id) === String(id));
+    if (index === -1) throw new Error('Plan not found');
+    store.plans[index] = { ...store.plans[index], ...data, updated_at: new Date().toISOString() };
+    saveMockStore(store);
+    return store.plans[index];
+  },
+
+  async deletePlan(id) {
+    await delay();
+    const store = getMockStore();
+    store.plans = store.plans.filter((p) => String(p.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
+  },
+
+  // --------------------------------------------------------------------------
+  // Quotations
+  // --------------------------------------------------------------------------
+  async getQuotations() {
+    await delay();
+    const store = getMockStore();
+    return [...store.quotations];
+  },
+
+  async getQuotationById(id) {
+    await delay();
+    const store = getMockStore();
+    const q = store.quotations.find((item) => String(item.id) === String(id));
+    if (!q) throw new Error('Quotation not found');
+    return q;
+  },
+
+  async createQuotation(data) {
+    await delay();
+    const store = getMockStore();
+    const customer = store.customers.find((c) => String(c.id) === String(data.customer_id));
+    const newQt = {
+      id: uid('qt'),
+      quotation_number: `QT-2026-${String(store.quotations.length + 1).padStart(3, '0')}`,
+      customer_id: data.customer_id,
+      customer_name: customer ? customer.name : 'Client',
+      customer_email: customer ? customer.email : '',
+      status: 'DRAFT',
+      valid_until: data.valid_until || new Date(Date.now() + 14 * 86400000).toISOString(),
+      subtotal: data.subtotal,
+      discount_amount: data.discount_amount || 0,
+      tax_amount: data.tax_amount || 0,
+      total: data.total,
+      notes: data.notes || '',
+      items: data.items || [],
+      created_at: new Date().toISOString(),
+    };
+    store.quotations.unshift(newQt);
+    saveMockStore(store);
+    return newQt;
+  },
+
+  async updateQuotationStatus(id, newStatus) {
+    await delay();
+    const store = getMockStore();
+    const index = store.quotations.findIndex((q) => String(q.id) === String(id));
+    if (index === -1) throw new Error('Quotation not found');
+    store.quotations[index].status = newStatus;
+    saveMockStore(store);
+    return store.quotations[index];
+  },
+
+  async convertQuotationToSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const qt = store.quotations.find((q) => String(q.id) === String(id));
+    if (!qt) throw new Error('Quotation not found');
+
+    // Mark quotation accepted
+    qt.status = 'ACCEPTED';
+
+    // Automatically provision new active subscription
+    const defaultPlan = store.plans[0] || { id: 'plan-001', name: 'Standard Provisioned Plan' };
+    const newSub = {
+      id: uid('sub'),
+      subscription_number: `SUB-2026-${String(store.subscriptions.length + 1).padStart(3, '0')}`,
+      customer_id: qt.customer_id,
+      customer_name: qt.customer_name,
+      plan_id: defaultPlan.id,
+      plan_name: defaultPlan.name,
+      billing_interval: defaultPlan.billing_interval || 'MONTHLY',
+      status: 'ACTIVE',
+      start_date: new Date().toISOString(),
+      end_date: new Date(Date.now() + 365 * 86400000).toISOString(),
+      next_billing_date: new Date(Date.now() + 30 * 86400000).toISOString(),
+      payment_terms: 'Due upon receipt',
+      items: qt.items.map((i) => ({
+        product_id: i.product_id,
+        product_name: i.product_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+      })),
+      created_at: new Date().toISOString(),
+    };
+    store.subscriptions.unshift(newSub);
+
+    // Automatically generate invoice for the subscription
+    const newInv = {
+      id: uid('inv'),
+      invoice_number: `INV-2026-${String(store.invoices.length + 1).padStart(3, '0')}`,
+      customer_id: qt.customer_id,
+      customer_name: qt.customer_name,
+      subscription_id: newSub.id,
+      issue_date: new Date().toISOString(),
+      due_date: new Date(Date.now() + 15 * 86400000).toISOString(),
+      billing_period_start: newSub.start_date,
+      billing_period_end: newSub.next_billing_date,
+      status: 'CONFIRMED',
+      subtotal: qt.subtotal,
+      tax_amount: qt.tax_amount,
+      discount_amount: qt.discount_amount,
+      total: qt.total,
+      amount_paid: 0,
+      balance_due: qt.total,
+      items: qt.items.map((i) => ({
+        description: i.product_name || 'Billed Service Line Item',
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        tax_rate: i.tax_rate || 18,
+        line_total: i.line_total || i.quantity * i.unit_price,
+      })),
+      created_at: new Date().toISOString(),
+    };
+    store.invoices.unshift(newInv);
+
+    saveMockStore(store);
+    return { subscription: newSub, invoice: newInv };
+  },
+
+  // --------------------------------------------------------------------------
+  // Subscriptions
+  // --------------------------------------------------------------------------
+  async getSubscriptions() {
+    await delay();
+    const store = getMockStore();
+    return [...store.subscriptions];
+  },
+
+  async getSubscriptionById(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    return sub;
+  },
+
+  async createSubscription(data) {
+    await delay();
+    const store = getMockStore();
+    const customer = store.customers.find((c) => String(c.id) === String(data.customer_id));
+    const plan = store.plans.find((p) => String(p.id) === String(data.plan_id));
+
+    const newSub = {
+      id: uid('sub'),
+      subscription_number: `SUB-2026-${String(store.subscriptions.length + 1).padStart(3, '0')}`,
+      customer_id: data.customer_id,
+      customer_name: customer ? customer.name : 'Client',
+      plan_id: data.plan_id,
+      plan_name: plan ? plan.name : 'Custom Plan',
+      billing_interval: plan ? plan.billing_interval : 'MONTHLY',
+      status: 'ACTIVE',
+      start_date: data.start_date || new Date().toISOString(),
+      end_date: data.end_date || null,
+      next_billing_date: new Date(Date.now() + 30 * 86400000).toISOString(),
+      payment_terms: data.payment_terms || 'Due upon receipt',
+      items: data.items || [],
+      created_at: new Date().toISOString(),
+    };
+    store.subscriptions.unshift(newSub);
+    saveMockStore(store);
+    return newSub;
+  },
+
+  async pauseSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'PAUSED';
+    saveMockStore(store);
+    return sub;
+  },
+
+  async renewSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'ACTIVE';
+    sub.next_billing_date = new Date(Date.now() + 30 * 86400000).toISOString();
+    saveMockStore(store);
+    return sub;
+  },
+
+  async closeSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'CLOSED';
+    saveMockStore(store);
+    return sub;
+  },
+
+  // --------------------------------------------------------------------------
+  // Invoices
+  // --------------------------------------------------------------------------
+  async getInvoices() {
+    await delay();
+    const store = getMockStore();
+    return [...store.invoices];
+  },
+
+  async getInvoiceById(id) {
+    await delay();
+    const store = getMockStore();
+    const inv = store.invoices.find((i) => String(i.id) === String(id));
+    if (!inv) throw new Error('Invoice not found');
+    return inv;
+  },
+
+  async confirmInvoice(id) {
+    await delay();
+    const store = getMockStore();
+    const inv = store.invoices.find((i) => String(i.id) === String(id));
+    if (!inv) throw new Error('Invoice not found');
+    inv.status = 'CONFIRMED';
+    saveMockStore(store);
+    return inv;
+  },
+
+  async cancelInvoice(id) {
+    await delay();
+    const store = getMockStore();
+    const inv = store.invoices.find((i) => String(i.id) === String(id));
+    if (!inv) throw new Error('Invoice not found');
+    inv.status = 'CANCELLED';
+    inv.balance_due = 0;
+    saveMockStore(store);
+    return inv;
+  },
+
+  async sendInvoice(id) {
+    await delay();
+    const store = getMockStore();
+    const inv = store.invoices.find((i) => String(i.id) === String(id));
+    if (!inv) throw new Error('Invoice not found');
+    inv.status = 'SENT';
+    saveMockStore(store);
+    return inv;
+  },
+
+  // --------------------------------------------------------------------------
+  // Payments
+  // --------------------------------------------------------------------------
+  async getPayments() {
+    await delay();
+    const store = getMockStore();
+    return [...store.payments];
+  },
+
+  async recordPayment(data) {
+    await delay();
+    const store = getMockStore();
+    const inv = store.invoices.find((i) => String(i.id) === String(data.invoice_id));
+    if (!inv) throw new Error('Target invoice not found');
+
+    const paymentAmount = Number(data.amount);
+    const newPayment = {
+      id: uid('pay'),
+      payment_reference: `PAY-2026-${String(store.payments.length + 1).padStart(3, '0')}`,
+      invoice_id: inv.id,
+      invoice_number: inv.invoice_number,
+      customer_name: inv.customer_name,
+      amount: paymentAmount,
+      payment_method: data.payment_method || 'CREDIT_CARD',
+      payment_date: data.payment_date || new Date().toISOString(),
+      status: 'SUCCESSFUL',
+      notes: data.notes || '',
+      created_at: new Date().toISOString(),
+    };
+
+    // Update target invoice balances
+    inv.amount_paid = (Number(inv.amount_paid) || 0) + paymentAmount;
+    inv.balance_due = Math.max(0, (Number(inv.total) || 0) - inv.amount_paid);
+
+    if (inv.balance_due <= 0) {
+      inv.status = 'PAID';
+    } else {
+      inv.status = 'PARTIALLY_PAID';
+    }
+
+    store.payments.unshift(newPayment);
+    saveMockStore(store);
+    return newPayment;
+  },
+
+  // --------------------------------------------------------------------------
+  // Users & Role Management
+  // --------------------------------------------------------------------------
+  async getUsers() {
+    await delay();
+    const store = getMockStore();
+    return [...store.users];
+  },
+
+  async createUser(data) {
+    await delay();
+    const store = getMockStore();
+    const newUser = {
+      id: uid('usr'),
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      role: (data.role || 'STAFF').toUpperCase(),
+      is_active: data.is_active ?? true,
+      created_at: new Date().toISOString(),
+    };
+    store.users.unshift(newUser);
+    saveMockStore(store);
+    return newUser;
+  },
+
+  async updateUser(id, data) {
+    await delay();
+    const store = getMockStore();
+    const index = store.users.findIndex((u) => String(u.id) === String(id));
+    if (index === -1) throw new Error('User not found');
+    store.users[index] = {
+      ...store.users[index],
+      ...data,
+      role: data.role ? data.role.toUpperCase() : store.users[index].role,
+      updated_at: new Date().toISOString(),
+    };
+    saveMockStore(store);
+    return store.users[index];
+  },
+
+  async deleteUser(id) {
+    await delay();
+    const store = getMockStore();
+    store.users = store.users.filter((u) => String(u.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
+  },
+};

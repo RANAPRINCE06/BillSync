@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { planService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { Table, TableHead, Th, TableBody, Td, TableSkeleton, TableEmpty } from '../../components/ui/Table';
 import { Button, IconButton } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/Badge';
+import { ConfirmModal } from '../../components/ui/Modal';
 import { PlanFormModal } from './PlanFormModal';
 
 function formatCurrency(val) {
@@ -26,6 +27,8 @@ export default function PlansPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editPlan, setEditPlan] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ open: false, plan: null });
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -57,6 +60,21 @@ export default function PlansPage() {
     setModalOpen(false);
     fetchPlans();
     addToast(editPlan ? 'Plan updated successfully' : 'Plan created successfully', 'success');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.plan) return;
+    setActionLoading(true);
+    try {
+      await planService.delete(deleteModal.plan.id);
+      addToast('Plan deleted', 'info');
+      fetchPlans();
+    } catch (err) {
+      addToast(getErrorMessage(err, 'Failed to delete plan'), 'error');
+    } finally {
+      setActionLoading(false);
+      setDeleteModal({ open: false, plan: null });
+    }
   };
 
   return (
@@ -104,8 +122,14 @@ export default function PlansPage() {
                   <Td>{formatDate(p.available_from || p.start_date)}</Td>
                   <Td>{formatDate(p.available_until || p.available_to || p.end_date)}</Td>
                   <Td>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
                       <IconButton icon={Pencil} label="Edit plan" onClick={() => openEdit(p)} />
+                      <IconButton
+                        icon={Trash2}
+                        label="Delete plan"
+                        onClick={() => setDeleteModal({ open: true, plan: p })}
+                        className="text-red-400 hover:text-red-600"
+                      />
                     </div>
                   </Td>
                 </tr>
@@ -120,6 +144,17 @@ export default function PlansPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         plan={editPlan}
+      />
+
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, plan: null })}
+        onConfirm={handleDelete}
+        title="Delete Subscription Plan"
+        message={`Are you sure you want to delete ${deleteModal.plan?.name}? Existing active subscriptions on this plan will remain valid.`}
+        confirmLabel="Delete Plan"
+        variant="danger"
+        loading={actionLoading}
       />
     </div>
   );

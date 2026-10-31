@@ -15,7 +15,7 @@ export function ProtectedRoute({ children, allowedRoles }) {
   if (allowedRoles) {
     const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
     if (!normalizedAllowed.includes(roleUpper)) {
-      return <Navigate to={roleUpper === 'CUSTOMER' ? '/subscriptions' : '/'} replace />;
+      return <Navigate to={roleUpper === 'CUSTOMER' ? '/portal' : '/'} replace />;
     }
   }
 
@@ -28,7 +28,7 @@ export function GuestRoute({ children }) {
   if (loading) return <PageSpinner />;
 
   if (user) {
-    return <Navigate to={roleUpper === 'CUSTOMER' ? '/subscriptions' : '/'} replace />;
+    return <Navigate to={roleUpper === 'CUSTOMER' ? '/portal' : '/'} replace />;
   }
 
   return children;

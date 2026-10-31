@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, Pencil } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2 } from 'lucide-react';
 import { customerService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -8,6 +8,7 @@ import { PageHeader, SearchInput } from '../../components/ui/Common';
 import { Card } from '../../components/ui/Card';
 import { Table, TableHead, Th, TableBody, Td, TableSkeleton, TableEmpty } from '../../components/ui/Table';
 import { Button, IconButton } from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/Modal';
 import { CustomerFormModal } from './CustomerFormModal';
 
 export default function CustomersPage() {
@@ -18,12 +19,14 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ open: false, customer: null });
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await customerService.getAll(search ? { search } : {});
-      const list = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      const list = Array.isArray(res.data) ? res.data : res.data?.items || [];
       setCustomers(list);
     } catch (err) {
       addToast(getErrorMessage(err, 'Failed to load customers'), 'error');
@@ -50,6 +53,21 @@ export default function CustomersPage() {
     setModalOpen(false);
     fetchCustomers();
     addToast(editCustomer ? 'Customer updated successfully' : 'Customer added successfully', 'success');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.customer) return;
+    setActionLoading(true);
+    try {
+      await customerService.delete(deleteModal.customer.id);
+      addToast('Customer deleted', 'info');
+      fetchCustomers();
+    } catch (err) {
+      addToast(getErrorMessage(err, 'Failed to delete customer'), 'error');
+    } finally {
+      setActionLoading(false);
+      setDeleteModal({ open: false, customer: null });
+    }
   };
 
   return (
@@ -97,6 +115,12 @@ export default function CustomersPage() {
                     <div className="flex items-center justify-end gap-1">
                       <IconButton icon={Eye} label="View details" onClick={() => navigate(`/customers/${c.id}`)} />
                       <IconButton icon={Pencil} label="Edit customer" onClick={() => openEdit(c)} />
+                      <IconButton
+                        icon={Trash2}
+                        label="Delete customer"
+                        onClick={() => setDeleteModal({ open: true, customer: c })}
+                        className="text-red-400 hover:text-red-600"
+                      />
                     </div>
                   </Td>
                 </tr>
@@ -111,6 +135,17 @@ export default function CustomersPage() {
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
         customer={editCustomer}
+      />
+
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, customer: null })}
+        onConfirm={handleDelete}
+        title="Delete Customer"
+        message={`Are you sure you want to delete ${deleteModal.customer?.name}? This will affect their linked records.`}
+        confirmLabel="Delete Customer"
+        variant="danger"
+        loading={actionLoading}
       />
     </div>
   );
