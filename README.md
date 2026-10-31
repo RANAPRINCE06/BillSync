@@ -4,209 +4,195 @@
   <img src="public/logo.png" alt="BillSync Logo" width="100" height="100" />
 </p>
 
-BillSync is a modern web application designed to help businesses manage their customers, products, subscription plans, quotations, recurring invoices, and payments from one place.
+<p align="center">
+  <strong>An all-in-one recurring billing, subscription lifecycle, and invoice management platform for modern businesses.</strong>
+</p>
 
-Instead of managing these activities separately, BillSync brings the complete subscription and billing process into one unified system.
-
----
-
-## Why BillSync?
-
-Businesses that offer subscriptions need to keep track of customers, billing dates, invoices, payments, and renewals.
-
-Managing all this manually can become difficult, especially when the number of customers and subscriptions increases.
-
-BillSync makes this process seamless by keeping everything organized and providing a clear, real-time view of subscription and payment status.
-
----
-
-## Features
-
-| Module | What it does |
-|---|---|
-| **Dashboard** | Shows business activity, revenue trends, active subscriptions, and pending payments. |
-| **Customers** | Stores and manages complete customer profiles and contact information. |
-| **Products** | Manages products, variants, base prices, variant extra pricing, and product types. |
-| **Subscription Plans** | Creates plans with configurable pricing, billing periods, and lifecycle rules. |
-| **Quotations** | Prepares professional quotations for customers before confirming subscriptions. |
-| **Subscriptions** | Manages active, paused, renewed, and closed subscriptions with automated scheduling. |
-| **Invoices** | Creates, tracks, confirms, downloads, and prints customer invoices with tax calculation. |
-| **Discounts** | Manages fixed and percentage-based promotional and recurring discounts. |
-| **Payments** | Records payments and tracks outstanding balances and overdue invoices. |
-| **User Management** | Admin-facing screens to manage staff accounts, roles, and access permissions. |
-| **Customer Portal** | Dedicated self-service portal for customers to check subscriptions, invoices, and payment history. |
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-blue?logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/Vite-8-purple?logo=vite" alt="Vite" />
+  <img src="https://img.shields.io/badge/TailwindCSS-4-38bdf8?logo=tailwindcss" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Firebase-Auth%20%26%20Firestore-orange?logo=firebase" alt="Firebase" />
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql" alt="PostgreSQL" />
+</p>
 
 ---
 
-## How BillSync Works
+## 📌 What is BillSync?
 
-The system follows a complete end-to-end lifecycle from customer onboarding to recurring revenue collection.
+Businesses that sell software, memberships, or services struggle with managing spreadsheets, tracking renewals, calculating overdue bills, and recording partial payments.
 
-```text
-        Add Customer
-             |
-             v
-       Add Products
-             |
-             v
-    Create Subscription Plan
-             |
-             v
-      Prepare Quotation
-             |
-             v
-     Confirm Quotation
-             |
-             v
-    Create Subscription
-             |
-             v
-    Activate Subscription
-             |
-             v
-     Generate Invoice
-             |
-             v
-      Record Payment
-             |
-             v
-    Update Payment Status
-             |
-             v
-      View Dashboard
+**BillSync solves this by unifying the entire billing lifecycle into a single web application.** From customer onboarding and quotation approvals to recurring subscription management, automated invoicing, and real-time payment reconciliation.
+
+---
+
+## 🔄 End-to-End Business Flow
+
+The entire workflow from a new customer to received payment is fully automated and interconnected:
+
+```mermaid
+flowchart LR
+    classDef setup fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e40af;
+    classDef sales fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,color:#5b21b6;
+    classDef billing fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#065f46;
+    classDef payment fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#92400e;
+
+    subgraph Step1["1. Setup & Catalog"]
+        A["👤 Add Customer"]:::setup --> B["📦 Add Products & Plans"]:::setup
+    end
+
+    subgraph Step2["2. Sales Agreement"]
+        B --> C["📝 Create Quotation"]:::sales
+        C --> D["✅ Confirm Quotation"]:::sales
+    end
+
+    subgraph Step3["3. Subscription & Billing"]
+        D --> E["🔁 Activate Subscription"]:::billing
+        E --> F["📄 Generate Invoice"]:::billing
+    end
+
+    subgraph Step4["4. Payment & Insights"]
+        F --> G["💳 Record Payment"]:::payment
+        G --> H["⚡ Real-Time Dashboard"]:::payment
+    end
 ```
 
-### Step-by-Step Workflow
+### How It Works in 4 Simple Steps
 
-1. **Add Customers**  
-   Add customer details such as name, email, phone number, address, and notes. Customer records can be viewed, searched, and updated whenever needed.
-
-2. **Add Products**  
-   Create products with their names, types, sales prices, cost prices, and available variants with dynamic price adjustments.
-
-3. **Create Subscription Plans**  
-   Set up subscription plans by defining price, billing frequency, minimum quantity, availability dates, and lifecycle policies (Pause, Early Close, Renewal, Auto-Close).  
-   *Available billing frequencies:* **Daily**, **Weekly**, **Monthly**, **Yearly**.
-
-4. **Prepare Quotations**  
-   Select a customer and add the required products or subscription plans. Set quantities, prices, taxes, and validity dates before saving drafts or confirming quotations.
-
-5. **Create Subscriptions**  
-   Once a quotation is confirmed, create a subscription using the selected plan and line items. Subscriptions can be activated, paused, resumed, renewed, or closed according to plan settings.
-
-6. **Generate Invoices**  
-   Invoices are generated according to the subscription billing schedule. Each invoice contains customer details, product information, quantities, unit prices, taxes, and the total amount.
-
-7. **Record Payments**  
-   Record payments against invoices and update their status. The system tracks paid amounts, remaining balances, and overdue invoices.
-
-8. **Track Business Activity**  
-   The dashboard provides an overview of:
-   - Total customers
-   - Active subscriptions
-   - Total revenue
-   - Payments received
-   - Outstanding payments
-   - Overdue invoices
-   - Subscription growth and renewal trends
+1. **Setup Catalog**: Add customer details and define your products, variant pricing, and recurring billing plans (Daily, Weekly, Monthly, Yearly).
+2. **Quote & Agree**: Build a quotation with line items, tax rates, and discounts. Once approved by the customer, convert it into an active subscription in one click.
+3. **Automate Subscriptions**: The subscription automatically schedules recurring billing, handles renewals, and generates confirmed invoices.
+4. **Collect & Reconcile**: Record full or partial payments. The dashboard and customer portal immediately update the outstanding balance in real time using Cloud Firestore.
 
 ---
 
-## Subscription Management
+## 🚀 Key Modules & Capabilities
 
-BillSync supports the following subscription lifecycle actions:
+| Module | What It Does | Why It Matters |
+|---|---|---|
+| **📊 Real-Time Dashboard** | Tracks active subscriptions, total revenue, payments received, and overdue balances. | Gives executives an instant snapshot of business health with real-time Firestore listeners. |
+| **👥 Customer Management** | Central directory of clients, company affiliations, contacts, and billing addresses. | Organizes client profiles and isolates data per customer. |
+| **📦 Products & Variants** | Manages catalog items, sales prices, cost prices, and multi-tier product variants. | Dynamically computes correct final prices based on selected variants. |
+| **📅 Subscription Plans** | Configurable pricing tiers, billing cycles, minimum quantities, and lifecycle rules. | Supports flexible billing: Daily, Weekly, Monthly, and Annual tiers. |
+| **📝 Quotations** | Prepares professional customer estimates with taxes, discounts, and validity periods. | Prevents billing miscommunication by securing customer confirmation upfront. |
+| **🔁 Subscriptions** | Manages live lifecycle actions: **Activate**, **Pause**, **Resume**, **Renew**, and **Close**. | Gives complete control over customer agreements and term renewals. |
+| **📄 Invoices & Billing** | Generates itemized invoices (`Draft`, `Confirmed`, `Paid`, `Overdue`), print views, and PDF exports. | Ensures compliance with tax calculations and clear payment schedules. |
+| **💳 Payments & Settlement** | Records payments via UPI, Card, Net Banking, or Cash with receipt generation. | Prevents double counting and tracks partial payments against specific invoices. |
+| **🔐 User Management** | Admin-facing console to add staff, assign roles, and activate/deactivate accounts. | Ensures safe operational separation between Admins, Staff, and Customers. |
+| **🌐 Customer Portal** | Dedicated self-service portal (`/portal`) for customers to view personal invoices and pay bills. | Zero data leakage—customers only see their own active plans and invoices. |
 
-| Action | Description |
+---
+
+## 🔁 Subscription Lifecycle
+
+BillSync manages every stage of a recurring agreement without manual intervention:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Create Subscription
+    Draft --> Confirmed: Review Terms
+    Confirmed --> Active: Activate Provisioning
+    Active --> Paused: Temporary Hold
+    Paused --> Active: Resume Service
+    Active --> Renewed: Extend Billing Cycle
+    Active --> Closed: Term End / Cancel
+    Closed --> [*]
+```
+
+- **Activate**: Begins active service and initializes recurring billing schedules.
+- **Pause / Resume**: Temporarily holds recurring billing without deleting customer records.
+- **Renew**: Extends agreement terms for the next billing cycle.
+- **Close**: Terminates subscription cleanly and finalizes outstanding amounts.
+
+---
+
+## 💰 Accurate Real-Time Balance Calculation
+
+Total balance is calculated using **integer paise arithmetic** to eliminate floating-point currency errors:
+
+$$\text{Total Balance} = \sum (\text{Confirmed Invoice Amount}) - \sum (\text{Valid Payments Received Against Those Invoices})$$
+
+### Invoice-Wise Calculation Example
+
+| Invoice # | Invoice Amount | Amount Paid | Outstanding Balance | Status |
+|---|---:|---:|---:|:---:|
+| **INV-2026-001** | ₹5,000.00 | ₹2,000.00 | **₹3,000.00** | Partially Paid |
+| **INV-2026-002** | ₹3,000.00 | ₹3,000.00 | **₹0.00** | Settled (Paid) |
+| **INV-2026-003** | ₹2,000.00 | ₹500.00 | **₹1,500.00** | Partially Paid |
+| **Total** | **₹10,000.00** | **₹5,500.00** | **₹4,500.00** | **Live Synced** |
+
+- **Draft and Cancelled invoices are strictly excluded.**
+- **Payments are deduplicated** by ID so receipts are never counted twice.
+- **Live Firestore Listeners** (`onSnapshot`) push updates to the dashboard automatically whenever an invoice or payment changes across any session.
+
+---
+
+## 👥 User Roles & Security
+
+BillSync provides three distinct access tiers:
+
+1. **👑 Admin**
+   - Complete system access.
+   - Manages customers, products, plans, quotations, subscriptions, invoices, and payments.
+   - Controls staff accounts and role assignments in User Management.
+   - Accesses high-level revenue and business analytics.
+
+2. **🛠️ Staff**
+   - Handles daily operational workflows (customers, quotations, invoices, payments).
+   - Restricted from sensitive admin-only staff management settings.
+
+3. **👤 Customer**
+   - Secure self-service portal (`/portal`).
+   - Views personal profile, active subscriptions, payment history, and invoices.
+   - Strict data isolation—customers cannot access any other customer's information.
+
+---
+
+## 🔑 Authentication Options
+
+- **Email & Password**: Standard authentication with password complexity verification.
+- **Continue with Google**: 1-click Google Sign-In powered by **Firebase Authentication**.
+  - Automatically provisions user profile in Cloud Firestore.
+  - Preserves existing assigned roles on repeated sign-ins.
+  - New self-service sign-ins default to `CUSTOMER` role.
+- **Demo Accounts**: Instant 1-click test credentials for Admin, Staff, and Customer testing.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies Used |
 |---|---|
-| **Activate** | Starts a confirmed subscription and initiates the billing cycle. |
-| **Pause** | Temporarily stops a subscription (if permitted by the plan). |
-| **Resume** | Restarts a paused subscription. |
-| **Renew** | Extends a subscription for another billing cycle. |
-| **Close** | Ends a subscription cleanly. |
-
-*Available actions depend on the subscription's status and plan settings.*
-
----
-
-## Invoice and Payment Tracking
-
-Each invoice maintains a clear status so users can track billing progress effortlessly:
-
-- **Draft**: Newly created or pending confirmation.
-- **Confirmed**: Issued and awaiting payment.
-- **Paid**: Payment fully recorded and settled.
-
-Users can view detailed breakdowns, confirm or cancel invoices, record full or partial payments, and print or download invoices as formatted documents.
+| **Frontend Framework** | React 19, Vite 8 |
+| **UI & Styling** | Tailwind CSS v4, Lucide React Icons |
+| **Routing & Navigation** | React Router DOM v7 (Role-based Protected Routes) |
+| **Charts & Data Viz** | Recharts (Revenue Trends & Subscription Growth) |
+| **Cloud & Auth** | Firebase Authentication (Google Sign-In), Cloud Firestore Real-Time DB, Google Analytics |
+| **Backend & DB** | FastAPI (Python), PostgreSQL |
 
 ---
 
-## User Roles & Permissions
-
-BillSync provides role-based navigation and access levels:
-
-- **Admin**
-  - Full application access.
-  - Manages customers, products, plans, quotations, subscriptions, invoices, and payments.
-  - Manages staff accounts, roles, and permissions in User Management.
-  - Views comprehensive financial metrics and reports.
-
-- **Staff**
-  - Handles daily operational tasks (customers, quotations, subscriptions, invoices, and payments).
-  - Restricted from admin-only staff management settings.
-
-- **Customer**
-  - Access to dedicated Customer Portal (`/portal`).
-  - Views personal profile, active subscriptions, invoice details, payment receipts, and outstanding balance.
-  - Strict data isolation ensuring customers cannot see other customers' records.
-
----
-
-## Example: How a Business Uses BillSync
-
-Suppose a business offers a monthly software subscription for its customers:
-
-1. The business adds a new customer.
-2. It creates a product called **Software Plan**.
-3. It creates a monthly subscription plan for **₹999**.
-4. It prepares a quotation for the customer.
-5. The customer accepts the quotation.
-6. The business activates the subscription.
-7. At the next billing date, an invoice is generated.
-8. The customer makes a payment of **₹999**.
-9. The payment is recorded and the invoice status is updated to **Paid**.
-10. The business monitors the transaction and subscription health from the dashboard.
-
----
-
-## Tech Stack
-
-- **Frontend**: React 19, Vite, Tailwind CSS, Lucide React
-- **Routing**: React Router DOM (v7)
-- **Analytics & Cloud**: Firebase SDK & Google Analytics (`billsync-fa57a`)
-- **Backend & Database**: FastAPI, PostgreSQL
-
----
-
-## Getting Started
+## ⚡ Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
+- Node.js (v18 or higher)
 - npm or yarn
 
-### Installation
+### 1. Clone & Install
 ```bash
-# Clone the repository
 git clone https://github.com/RANAPRINCE06/BillSync.git
 cd BillSync
-
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
 ```
 
-### Production Build
+### 2. Start Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:8000](http://localhost:8000) in your browser.
+
+### 3. Production Build
 ```bash
 npm run build
 npm run preview
@@ -214,17 +200,15 @@ npm run preview
 
 ---
 
-## Team Members
+## 👥 Team & Responsibilities
 
-| Member | Responsibility |
+| Contributor | Focus Area |
 |---|---|
-| **Rudra Chauhan** | Frontend development and user interface |
-| **Prince** | Database management and application logic |
+| **Rudra Chauhan** | Frontend architecture, real-time UI, state management, and design system |
+| **Prince** | Database design, application logic, and backend API integration |
 
 ---
 
-## Project Goal
-
-Our goal is to build a practical subscription management system that helps businesses handle their daily subscription and billing activities without having to manage customers, invoices, and payments separately.
-
-**BillSync – Subscription Management System**
+<p align="center">
+  <strong>BillSync</strong> — Simplifying subscription billing for growing businesses.
+</p>
