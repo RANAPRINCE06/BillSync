@@ -1,29 +1,28 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Package, CreditCard, FileText,
-  Repeat, Receipt, DollarSign, Settings, LogOut, ChevronRight,
-  Zap
+  Repeat, Receipt, DollarSign, Settings, LogOut, Zap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const ALL_NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff'] },
-  { to: '/customers', label: 'Customers', icon: Users, roles: ['admin', 'staff'] },
-  { to: '/products', label: 'Products', icon: Package, roles: ['admin', 'staff'] },
-  { to: '/plans', label: 'Subscription Plans', icon: CreditCard, roles: ['admin', 'staff'] },
-  { to: '/quotations', label: 'Quotations', icon: FileText, roles: ['admin', 'staff'] },
-  { to: '/subscriptions', label: 'Subscriptions', icon: Repeat, roles: ['admin', 'staff', 'customer'] },
-  { to: '/invoices', label: 'Invoices', icon: Receipt, roles: ['admin', 'staff', 'customer'] },
-  { to: '/payments', label: 'Payments', icon: DollarSign, roles: ['admin', 'staff', 'customer'] },
-  { to: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'STAFF'] },
+  { to: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'STAFF'] },
+  { to: '/products', label: 'Products', icon: Package, roles: ['ADMIN', 'STAFF'] },
+  { to: '/plans', label: 'Subscription Plans', icon: CreditCard, roles: ['ADMIN', 'STAFF'] },
+  { to: '/quotations', label: 'Quotations', icon: FileText, roles: ['ADMIN', 'STAFF'] },
+  { to: '/subscriptions', label: 'Subscriptions', icon: Repeat, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/invoices', label: 'Invoices', icon: Receipt, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/payments', label: 'Payments', icon: DollarSign, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },
 ];
 
 export function Sidebar({ collapsed }) {
-  const { user, logout, isAdmin, isStaff, isCustomer } = useAuth();
+  const { user, logout, roleUpper } = useAuth();
   const navigate = useNavigate();
 
-  const userRole = user?.role || 'customer';
-  const navItems = ALL_NAV.filter((item) => item.roles.includes(userRole));
+  const currentRole = roleUpper || 'CUSTOMER';
+  const navItems = ALL_NAV.filter((item) => item.roles.includes(currentRole));
 
   const handleLogout = async () => {
     await logout();
@@ -60,7 +59,7 @@ export function Sidebar({ collapsed }) {
                   flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                   transition-colors group
                   ${isActive
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-blue-50 text-blue-700 font-semibold'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }
                 `}
@@ -78,8 +77,8 @@ export function Sidebar({ collapsed }) {
       <div className="border-t border-slate-100 p-3 shrink-0">
         {!collapsed && (
           <div className="px-2 py-2 mb-1">
-            <p className="text-xs font-medium text-slate-800 truncate">{user?.name || user?.email}</p>
-            <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
+            <p className="text-xs font-semibold text-slate-800 truncate">{user?.name || user?.email}</p>
+            <p className="text-xs text-slate-400 capitalize">{currentRole.toLowerCase()}</p>
           </div>
         )}
         <button
@@ -94,4 +93,3 @@ export function Sidebar({ collapsed }) {
     </aside>
   );
 }
-
