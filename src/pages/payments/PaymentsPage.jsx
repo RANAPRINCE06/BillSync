@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Eye, Filter, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, Eye, Filter, CreditCard, DollarSign, Printer, Download } from 'lucide-react';
 import { paymentService, invoiceService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -305,6 +305,34 @@ export default function PaymentsPage() {
             </div>
 
             <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button variant="secondary" size="sm" onClick={() => window.print()}>
+                <Printer className="w-3.5 h-3.5" /> Print Receipt
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const exportReceipt = {
+                    payment_reference: viewPayment.payment_reference,
+                    invoice_number: viewPayment.invoice_number,
+                    customer: viewPayment.customer_name,
+                    amount: viewPayment.amount,
+                    payment_method: viewPayment.payment_method,
+                    payment_date: viewPayment.payment_date,
+                    notes: viewPayment.notes,
+                  };
+                  const blob = new Blob([JSON.stringify(exportReceipt, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Receipt_${viewPayment.payment_reference || viewPayment.id}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a);
+                  addToast('Payment receipt downloaded', 'success');
+                }}
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </Button>
               <Button variant="secondary" onClick={() => setViewPayment(null)}>
                 Close
               </Button>

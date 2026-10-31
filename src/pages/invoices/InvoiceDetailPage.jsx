@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, XCircle, Send, Printer,
-  CreditCard, Building, Mail, Phone, Calendar, FileText
+  CreditCard, Building, Mail, Phone, Calendar, FileText, Download
 } from 'lucide-react';
 import { invoiceService } from '../../services';
 import { getErrorMessage } from '../../services/api';
@@ -113,6 +113,35 @@ export default function InvoiceDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => window.print()}>
             <Printer className="w-3.5 h-3.5" /> Print Invoice
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const exportDoc = {
+                invoice_number: invoice.invoice_number,
+                customer: invoice.customer_name,
+                issue_date: invoice.issue_date,
+                due_date: invoice.due_date,
+                items: invoice.items || invoice.lines,
+                subtotal: invoice.subtotal,
+                tax_amount: invoice.tax_amount,
+                discount_amount: invoice.discount_amount,
+                total: invoice.total,
+                amount_paid: invoice.amount_paid,
+                balance_due: invoice.balance_due,
+              };
+              const blob = new Blob([JSON.stringify(exportDoc, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${invoice.invoice_number || 'Invoice'}.json`;
+              a.click();
+              URL.revokeObjectURL(a);
+              addToast('Invoice statement downloaded', 'success');
+            }}
+          >
+            <Download className="w-3.5 h-3.5" /> Download Statement
           </Button>
 
           {canPay && (

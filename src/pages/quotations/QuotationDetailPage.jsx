@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, Repeat, XCircle, Send,
-  Pencil, Trash2, Calendar, Building, Mail, FileText, CheckCircle2
+  Pencil, Trash2, Calendar, Building, Mail, FileText, CheckCircle2,
+  Printer, Download, Copy
 } from 'lucide-react';
 import { quotationService } from '../../services';
 import { getErrorMessage } from '../../services/api';
@@ -68,6 +69,12 @@ export default function QuotationDetailPage() {
         addToast('Quotation deleted successfully', 'info');
         navigate('/quotations');
         return;
+      } else if (action === 'duplicate') {
+        const res = await quotationService.duplicate(id);
+        const dupId = res.data?.id || res.id;
+        addToast('Quotation duplicated into a new draft!', 'success');
+        navigate(`/quotations/${dupId}`);
+        return;
       }
       fetchQuotation();
     } catch (err) {
@@ -113,6 +120,53 @@ export default function QuotationDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Print Quotation */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => window.print()}
+          >
+            <Printer className="w-3.5 h-3.5" /> Print
+          </Button>
+
+          {/* Download Quotation */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const exportDoc = {
+                quotation_number: quotation.quotation_number,
+                customer: quotation.customer_name,
+                valid_until: quotation.valid_until,
+                items: quotation.items,
+                subtotal: quotation.subtotal,
+                tax_amount: quotation.tax_amount,
+                discount_amount: quotation.discount_amount,
+                total: quotation.total,
+              };
+              const blob = new Blob([JSON.stringify(exportDoc, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${quotation.quotation_number || 'Quotation'}.json`;
+              a.click();
+              URL.revokeObjectURL(a);
+              addToast('Quotation document downloaded', 'success');
+            }}
+          >
+            <Download className="w-3.5 h-3.5" /> Download
+          </Button>
+
+          {/* Duplicate Quotation */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleAction('duplicate')}
+            loading={actionLoading === 'duplicate'}
+          >
+            <Copy className="w-3.5 h-3.5" /> Duplicate
+          </Button>
+
           {canEdit && (
             <Button
               variant="secondary"

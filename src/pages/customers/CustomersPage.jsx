@@ -86,9 +86,27 @@ export default function CustomersPage() {
         title="Customers"
         subtitle={`${customers.length} registered client(s)`}
         action={
-          <Button onClick={openAdd} size="md">
-            <Plus className="w-4 h-4" /> Add Customer
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customers, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `customers_export_${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                addToast('Customer directory exported successfully', 'success');
+              }}
+              size="md"
+            >
+              Export
+            </Button>
+            <Button onClick={openAdd} size="md">
+              <Plus className="w-4 h-4" /> Add Customer
+            </Button>
+          </div>
         }
       />
 
@@ -118,6 +136,18 @@ export default function CustomersPage() {
                 </option>
               ))}
             </select>
+            {(search || companyFilter !== 'ALL') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch('');
+                  setCompanyFilter('ALL');
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </div>
         </div>
 

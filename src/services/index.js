@@ -119,6 +119,8 @@ export const quotationService = {
     USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'REJECTED')) : api.post(`/quotations/${id}/cancel`),
   convertToSubscription: (id) =>
     USE_MOCK ? mockWrap(mockService.convertQuotationToSubscription(id)) : api.post(`/quotations/${id}/convert`),
+  duplicate: (id) =>
+    USE_MOCK ? mockWrap(mockService.duplicateQuotation(id)) : api.post(`/quotations/${id}/duplicate`),
 };
 
 // ----------------------------------------------------------------------------

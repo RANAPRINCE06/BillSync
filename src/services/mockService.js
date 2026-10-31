@@ -107,6 +107,11 @@ export const mockService = {
   async deleteCustomer(id) {
     await delay();
     const store = getMockStore();
+    const hasSubs = (store.subscriptions || []).some((s) => String(s.customer_id) === String(id));
+    const hasInvoices = (store.invoices || []).some((i) => String(i.customer_id) === String(id));
+    if (hasSubs || hasInvoices) {
+      throw new Error('Cannot delete customer with linked active subscriptions or invoice records.');
+    }
     store.customers = store.customers.filter((c) => String(c.id) !== String(id));
     saveMockStore(store);
     return { success: true };
@@ -445,6 +450,25 @@ export const mockService = {
 
     saveMockStore(store);
     return { subscription: newSub, invoice: newInv };
+  },
+
+  async duplicateQuotation(id) {
+    await delay();
+    const store = getMockStore();
+    const qt = store.quotations.find((q) => String(q.id) === String(id));
+    if (!qt) throw new Error('Quotation not found');
+    const newQt = {
+      ...qt,
+      id: uid('qt'),
+      quotation_number: `QT-2026-${String(store.quotations.length + 1).padStart(3, '0')}`,
+      status: 'DRAFT',
+      created_at: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0],
+      valid_until: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    };
+    store.quotations.unshift(newQt);
+    saveMockStore(store);
+    return newQt;
   },
 
   // --------------------------------------------------------------------------

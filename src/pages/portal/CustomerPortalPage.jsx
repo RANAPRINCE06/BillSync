@@ -455,6 +455,30 @@ export default function CustomerPortalPage() {
             </div>
 
             <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const exportDoc = {
+                    invoice_number: viewInv.invoice_number,
+                    customer: customerProfile?.name,
+                    due_date: viewInv.due_date,
+                    total: viewInv.total,
+                    amount_paid: viewInv.amount_paid,
+                    balance_due: viewInv.balance_due,
+                  };
+                  const blob = new Blob([JSON.stringify(exportDoc, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${viewInv.invoice_number}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a);
+                  addToast('Invoice statement downloaded', 'success');
+                }}
+              >
+                <Download className="w-3.5 h-3.5" /> Download Invoice
+              </Button>
               <Button variant="secondary" onClick={() => setViewInv(null)}>
                 Close
               </Button>

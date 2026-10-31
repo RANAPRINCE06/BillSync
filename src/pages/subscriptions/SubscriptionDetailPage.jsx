@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, PlayCircle, PauseCircle,
   RefreshCw, XCircle, Calendar, Building, Mail, Phone,
-  Clock, ShieldCheck, FileText, CheckCircle2, AlertCircle
+  Clock, ShieldCheck, FileText, CheckCircle2, AlertCircle,
+  Printer, Receipt, CreditCard
 } from 'lucide-react';
-import { subscriptionService } from '../../services';
+import { subscriptionService, invoiceService, paymentService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
@@ -38,6 +39,8 @@ export default function SubscriptionDetailPage() {
   const addToast = useToast();
 
   const [subscription, setSubscription] = useState(null);
+  const [relatedInvoices, setRelatedInvoices] = useState([]);
+  const [relatedPayments, setRelatedPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [confirmModal, setConfirmModal] = useState({ open: false, action: '', label: '', message: '' });
@@ -45,8 +48,21 @@ export default function SubscriptionDetailPage() {
   const fetchSubscription = async () => {
     setLoading(true);
     try {
-      const res = await subscriptionService.getById(id);
-      setSubscription(res.data);
+      const [subRes, invRes, payRes] = await Promise.all([
+        subscriptionService.getById(id),
+        invoiceService.getAll().catch(() => ({ data: [] })),
+        paymentService.getAll().catch(() => ({ data: [] })),
+      ]);
+      setSubscription(subRes.data);
+
+      const allInvs = Array.isArray(invRes.data) ? invRes.data : invRes.data?.items || [];
+      const myInvs = allInvs.filter((i) => String(i.subscription_id) === String(id));
+      setRelatedInvoices(myInvs);
+
+      const myInvIds = new Set(myInvs.map((i) => String(i.id)));
+      const allPays = Array.isArray(payRes.data) ? payRes.data : payRes.data?.items || [];
+      const myPays = allPays.filter((p) => myInvIds.has(String(p.invoice_id)));
+      setRelatedPayments(myPays);
     } catch (err) {
       addToast(getErrorMessage(err, 'Failed to load subscription details'), 'error');
     } finally {
@@ -119,6 +135,15 @@ export default function SubscriptionDetailPage() {
 
         {/* Action Buttons strictly obeying status transition & plan options */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Print Subscription Details */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => window.print()}
+          >
+            <Printer className="w-3.5 h-3.5" /> Print Details
+          </Button>
+
           {/* Draft or Quotation -> Confirm */}
           {(status === 'DRAFT' || status === 'QUOTATION') && (
             <Button
@@ -447,6 +472,89 @@ export default function SubscriptionDetailPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Related Invoices & Payments Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Linked Invoices */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-blue-600" />
+              <CardTitle>Related Invoices ({relatedInvoices.length})</CardTitle>
+            </div>
+          </CardHeader>
+          <Table>
+            <TableHead>
+              <Th>Invoice #</Th>
+              <Th>Total</Th>
+              <Th>Balance</Th>
+              <Th>Status</Th>
+            </TableHead>
+            {relatedInvoices.length === 0 ? (
+              <TableEmpty message="No invoices generated for this subscription agreement yet." cols={4} />
+            ) : (
+              <TableBody>
+                {relatedInvoices.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    onClick={() => navigate(`/invoices/${inv.id}`)}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <Td className="font-mono text-xs font-semibold text-blue-700">{inv.invoice_number}</Td>
+                    <Td className="font-medium text-slate-900">{formatCurrency(inv.total)}</Td>
+                    <Td className={inv.balance_due > 0 ? 'text-red-600 font-semibold' : 'text-slate-600'}>
+                      {formatCurrency(inv.balance_due ?? (inv.total - (inv.amount_paid || 0)))}
+                    </Td>
+                    <Td>
+                      <StatusBadge status={inv.status} />
+                    </Td>
+                  </tr>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+
+        {/* Linked Payments */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <CardTitle>Related Payments ({relatedPayments.length})</CardTitle>
+            </div>
+          </CardHeader>
+          <Table>
+            <TableHead>
+              <Th>Receipt Ref #</Th>
+              <Th>Amount</Th>
+              <Th>Method</Th>
+              <Th>Status</Th>
+            </TableHead>
+            {relatedPayments.length === 0 ? (
+              <TableEmpty message="No payment transactions logged for linked invoices." cols={4} />
+            ) : (
+              <TableBody>
+                {relatedPayments.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate('/payments')}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <Td className="font-mono text-xs font-semibold text-slate-900">{p.payment_reference || `#${p.id}`}</Td>
+                    <Td className="font-bold text-emerald-700">{formatCurrency(p.amount)}</Td>
+                    <Td>
+                      <StatusBadge status={p.payment_method} />
+                    </Td>
+                    <Td>
+                      <StatusBadge status={p.status || 'SUCCESSFUL'} />
+                    </Td>
+                  </tr>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+        </Card>
+      </div>
 
       {/* Confirmation Modal */}
       <ConfirmModal
