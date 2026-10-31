@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services';
+import { signInWithGoogle, signOutUser } from '../services/googleAuthService';
 
 const AuthContext = createContext(null);
 
@@ -44,8 +45,8 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    // If it's a demo session, keep the stored user
-    if (token.startsWith('demo-token-')) {
+    // If it's a demo or Firebase session, keep the stored user across reloads
+    if (token.startsWith('demo-token-') || token.startsWith('firebase-token-')) {
       const stored = localStorage.getItem('user');
       if (stored) {
         try {
@@ -107,6 +108,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginWithGoogle = async () => {
+    const userProfile = await signInWithGoogle();
+    setUser(userProfile);
+    return userProfile;
+  };
+
   const loginAsDemo = (roleKey = 'admin') => {
     const emailKey = `${roleKey.toLowerCase()}@billsync.com`;
     const demoUser = DEMO_USERS[emailKey] || DEMO_USERS['admin@billsync.com'];
@@ -123,8 +130,7 @@ export function AuthProvider({ children }) {
     } catch {
       /* ignore */
     }
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
+    await signOutUser();
     setUser(null);
   };
 
@@ -139,6 +145,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
+        loginWithGoogle,
         loginAsDemo,
         logout,
         isAdmin,
