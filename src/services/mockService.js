@@ -22,10 +22,14 @@ export const mockService = {
       .filter((i) => i.status !== 'CANCELLED' && i.status !== 'PAID')
       .reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
     const overdue_invoices = store.invoices.filter((i) => i.status === 'OVERDUE').length;
+    const total_revenue = store.invoices
+      .filter((i) => i.status !== 'CANCELLED')
+      .reduce((sum, i) => sum + Number(i.total || 0), 0);
 
     return {
       active_subscriptions,
       total_customers,
+      total_revenue,
       revenue_received,
       outstanding_payments,
       overdue_invoices,
@@ -48,6 +52,19 @@ export const mockService = {
     await delay();
     const store = getMockStore();
     return store.revenue_chart || [];
+  },
+
+  async getSubscriptionChart() {
+    await delay();
+    const store = getMockStore();
+    return store.subscription_chart || [
+      { month: 'May 2026', subscriptions: 8, renewals: 3 },
+      { month: 'Jun 2026', subscriptions: 12, renewals: 5 },
+      { month: 'Jul 2026', subscriptions: 16, renewals: 7 },
+      { month: 'Aug 2026', subscriptions: 21, renewals: 9 },
+      { month: 'Sep 2026', subscriptions: 27, renewals: 12 },
+      { month: 'Oct 2026', subscriptions: 34, renewals: 15 },
+    ];
   },
 
   // --------------------------------------------------------------------------
