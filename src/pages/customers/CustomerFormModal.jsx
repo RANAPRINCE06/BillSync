@@ -6,7 +6,14 @@ import { customerService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
-const INITIAL = { name: '', email: '', phone: '', billing_address: '' };
+const INITIAL = {
+  name: '',
+  email: '',
+  phone: '',
+  company: '',
+  address: '',
+  notes: '',
+};
 
 export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
   const addToast = useToast();
@@ -20,7 +27,9 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
         name: customer.name || '',
         email: customer.email || '',
         phone: customer.phone || '',
-        billing_address: customer.billing_address || customer.address || '',
+        company: customer.company || '',
+        address: customer.address || customer.billing_address || '',
+        notes: customer.notes || '',
       });
     } else {
       setForm(INITIAL);
@@ -30,7 +39,7 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = 'Full name is required';
+    if (!form.name.trim()) e.name = 'Customer name is required';
     if (!form.email.trim()) e.email = 'Email address is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Invalid email address';
     return e;
@@ -49,7 +58,10 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || null,
-        billing_address: form.billing_address.trim() || null,
+        company: form.company.trim() || null,
+        address: form.address.trim() || null,
+        billing_address: form.address.trim() || null,
+        notes: form.notes.trim() || null,
       };
 
       if (customer) {
@@ -72,16 +84,25 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={customer ? 'Edit Customer' : 'Add Customer'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={customer ? 'Edit Customer' : 'Add New Customer'} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <Input
-          label="Full Name / Company Name"
-          value={form.name}
-          onChange={set('name')}
-          error={errors.name}
-          placeholder="e.g. Acme Corp"
-          required
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Customer Name"
+            value={form.name}
+            onChange={set('name')}
+            error={errors.name}
+            placeholder="e.g. John Doe"
+            required
+          />
+          <Input
+            label="Company Name (Optional)"
+            value={form.company}
+            onChange={set('company')}
+            placeholder="e.g. Acme Technologies"
+          />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Email Address"
@@ -89,23 +110,33 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
             value={form.email}
             onChange={set('email')}
             error={errors.email}
-            placeholder="billing@acme.com"
+            placeholder="john@acme.com"
             required
           />
           <Input
             label="Phone Number"
             value={form.phone}
             onChange={set('phone')}
-            placeholder="+1 555-0199"
+            placeholder="+91 98765 43210"
           />
         </div>
+
         <Textarea
-          label="Billing Address"
-          value={form.billing_address}
-          onChange={set('billing_address')}
+          label="Billing / Postal Address"
+          value={form.address}
+          onChange={set('address')}
           placeholder="Street address, city, state, postal code"
-          rows={3}
+          rows={2}
         />
+
+        <Textarea
+          label="Internal Notes"
+          value={form.notes}
+          onChange={set('notes')}
+          placeholder="Client preferences, payment terms, or fulfillment notes..."
+          rows={2}
+        />
+
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
             Cancel

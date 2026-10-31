@@ -63,8 +63,12 @@ export const mockService = {
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.email.toLowerCase().includes(q) ||
-          (c.phone && c.phone.includes(q))
+          (c.phone && c.phone.includes(q)) ||
+          (c.company && c.company.toLowerCase().includes(q))
       );
+    }
+    if (params.company) {
+      list = list.filter((c) => c.company && c.company.toLowerCase() === params.company.toLowerCase());
     }
     return list;
   },
@@ -114,10 +118,26 @@ export const mockService = {
     return store.subscriptions.filter((s) => String(s.customer_id) === String(customerId));
   },
 
+  async getCustomerQuotations(customerId) {
+    await delay();
+    const store = getMockStore();
+    return store.quotations.filter((q) => String(q.customer_id) === String(customerId));
+  },
+
   async getCustomerInvoices(customerId) {
     await delay();
     const store = getMockStore();
     return store.invoices.filter((i) => String(i.customer_id) === String(customerId));
+  },
+
+  async getCustomerPayments(customerId) {
+    await delay();
+    const store = getMockStore();
+    return store.payments.filter(
+      (p) =>
+        String(p.customer_id) === String(customerId) ||
+        store.invoices.some((inv) => String(inv.id) === String(p.invoice_id) && String(inv.customer_id) === String(customerId))
+    );
   },
 
   // --------------------------------------------------------------------------
@@ -130,8 +150,14 @@ export const mockService = {
     if (params.search) {
       const q = params.search.toLowerCase();
       list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q))
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q)) ||
+          (p.notes && p.notes.toLowerCase().includes(q))
       );
+    }
+    if (params.type && params.type !== 'ALL') {
+      list = list.filter((p) => (p.product_type || p.type || '').toUpperCase() === params.type.toUpperCase());
     }
     return list;
   },
@@ -559,3 +585,4 @@ export const mockService = {
     return { success: true };
   },
 };
+

@@ -57,8 +57,12 @@ export const customerService = {
     USE_MOCK ? mockWrap(mockService.deleteCustomer(id)) : api.delete(`/customers/${id}`),
   getSubscriptions: (id) =>
     USE_MOCK ? mockWrap(mockService.getCustomerSubscriptions(id)) : api.get(`/customers/${id}/subscriptions`),
+  getQuotations: (id) =>
+    USE_MOCK ? mockWrap(mockService.getCustomerQuotations(id)) : api.get(`/customers/${id}/quotations`),
   getInvoices: (id) =>
     USE_MOCK ? mockWrap(mockService.getCustomerInvoices(id)) : api.get(`/customers/${id}/invoices`),
+  getPayments: (id) =>
+    USE_MOCK ? mockWrap(mockService.getCustomerPayments(id)) : api.get(`/customers/${id}/payments`),
 };
 
 // ----------------------------------------------------------------------------
