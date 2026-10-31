@@ -34,6 +34,15 @@ from app.schemas.payment import (
     PaymentDetailResponse,
     PaymentListResponse,
 )
+from app.schemas.dashboard import (
+    ChartGrouping,
+    DashboardStatsResponse,
+    RevenueChartPoint,
+    RevenueChartResponse,
+    ActivityType,
+    RecentActivityItem,
+    RecentActivityResponse,
+)
 
 __all__ = [
     "APIResponse",
@@ -75,4 +84,11 @@ __all__ = [
     "PaymentResponse",
     "PaymentDetailResponse",
     "PaymentListResponse",
+    "ChartGrouping",
+    "DashboardStatsResponse",
+    "RevenueChartPoint",
+    "RevenueChartResponse",
+    "ActivityType",
+    "RecentActivityItem",
+    "RecentActivityResponse",
 ]
