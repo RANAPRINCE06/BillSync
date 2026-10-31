@@ -233,11 +233,12 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     inv_data = inv_res.json()
     invoice_id = inv_data["id"]
 
-    # Subtotal: 2 * 200.00 = 400.00; Tax 10% = 40.00; Total = 440.00; balance_due = 440.00
+    # Subtotal: 2 * 200.00 = 400.00; Tax 10% = 40.00; Quotation discount = 50.00; Total = 390.00; balance_due = 390.00
     assert Decimal(str(inv_data["subtotal"])) == Decimal("400.00")
     assert Decimal(str(inv_data["tax_amount"])) == Decimal("40.00")
-    assert Decimal(str(inv_data["total"])) == Decimal("440.00")
-    assert Decimal(str(inv_data["balance_due"])) == Decimal("440.00")
+    assert Decimal(str(inv_data["discount_amount"])) == Decimal("50.00")
+    assert Decimal(str(inv_data["total"])) == Decimal("390.00")
+    assert Decimal(str(inv_data["balance_due"])) == Decimal("390.00")
     assert Decimal(str(inv_data["amount_paid"])) == Decimal("0.00")
 
     # Duplicate invoice prevention for same billing period
@@ -255,18 +256,18 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     pay_res1 = client.post("/api/v1/payments", json=pay_payload1, headers=staff_headers)
     assert pay_res1.status_code == 201, pay_res1.text
 
-    # Verify invoice status is now PARTIALLY_PAID
+    # Verify invoice status is now PARTIALLY_PAID (390.00 - 200.00 = 190.00 balance due)
     inv_chk1 = client.get(f"/api/v1/invoices/{invoice_id}", headers=staff_headers)
     assert inv_chk1.status_code == 200
     inv_chk1_data = inv_chk1.json()
     assert inv_chk1_data["status"] == "PARTIALLY_PAID"
     assert Decimal(str(inv_chk1_data["amount_paid"])) == Decimal("200.00")
-    assert Decimal(str(inv_chk1_data["balance_due"])) == Decimal("240.00")
+    assert Decimal(str(inv_chk1_data["balance_due"])) == Decimal("190.00")
 
-    # 9. Record remaining payment of 240.00
+    # 9. Record remaining payment of 190.00
     pay_payload2 = {
         "invoice_id": invoice_id,
-        "amount": "240.00",
+        "amount": "190.00",
         "payment_method": "BANK_TRANSFER",
         "transaction_reference": f"txn_{uid}_2",
         "status": "SUCCESSFUL"
@@ -280,7 +281,7 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     assert inv_chk2.status_code == 200
     inv_chk2_data = inv_chk2.json()
     assert inv_chk2_data["status"] == "PAID"
-    assert Decimal(str(inv_chk2_data["amount_paid"])) == Decimal("440.00")
+    assert Decimal(str(inv_chk2_data["amount_paid"])) == Decimal("390.00")
     assert Decimal(str(inv_chk2_data["balance_due"])) == Decimal("0.00")
 
     # 10. Recurring Billing Cycle: make subscription due for next period
@@ -290,7 +291,7 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     sub_entity.next_billing_date = datetime.now(timezone.utc) - timedelta(days=1)
     db_session.commit()
 
-    # Trigger billing run
+    # Trigger billing run (recurring billing does NOT re-apply one-time quotation discount)
     bill_run_res = client.post("/api/v1/billing/run", json={"default_tax_rate": "10.00"}, headers=staff_headers)
     assert bill_run_res.status_code == 200, bill_run_res.text
     bill_data = bill_run_res.json()["data"]
@@ -305,7 +306,7 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     stats_res = client.get("/api/v1/dashboard/stats", headers=admin_headers)
     assert stats_res.status_code == 200
     stats = stats_res.json()["data"]
-    assert Decimal(str(stats["total_revenue_received"])) >= Decimal("440.00")
+    assert Decimal(str(stats["total_revenue_received"])) >= Decimal("390.00")
     assert stats["total_active_subscriptions"] >= 1
 
     # 12. Refund payment2 and verify balance restoration
@@ -318,6 +319,6 @@ def test_complete_business_workflow_e2e(client: TestClient, db_session: Session)
     assert inv_ref.status_code == 200
     inv_ref_data = inv_ref.json()
     assert inv_ref_data["status"] == "PARTIALLY_PAID"
-    assert Decimal(str(inv_ref_data["balance_due"])) == Decimal("240.00")
+    assert Decimal(str(inv_ref_data["balance_due"])) == Decimal("190.00")
     assert Decimal(str(inv_ref_data["amount_paid"])) == Decimal("200.00")
 

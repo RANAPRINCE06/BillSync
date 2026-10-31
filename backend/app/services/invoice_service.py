@@ -15,7 +15,8 @@ from app.core.exceptions import (
 from app.models.customer import Customer
 from app.models.enums import BillingInterval, InvoiceStatus, UserRole
 from app.models.invoice import Invoice, InvoiceItem
-from app.models.subscription import Subscription
+from app.models.quotation import Quotation, QuotationItem
+from app.models.subscription import Subscription, SubscriptionItem
 from app.models.user import User
 from app.schemas.invoice import InvoiceGenerateRequest
 from app.services.discount_service import DiscountService
@@ -49,14 +50,16 @@ class InvoiceService:
         Generate an invoice for a subscription with precise financial calculation,
         duplicate period prevention, and historical item snapshots.
         """
-        # 1. Retrieve Subscription with Plan, Customer, and Items
+        # 1. Retrieve Subscription with Plan, Customer, Items, and Quotation
         stmt = (
             select(Subscription)
             .where(Subscription.id == payload.subscription_id)
             .options(
                 selectinload(Subscription.customer),
                 selectinload(Subscription.plan),
-                selectinload(Subscription.items)
+                selectinload(Subscription.items).selectinload(SubscriptionItem.product),
+                selectinload(Subscription.quotation).selectinload(Quotation.items),
+                selectinload(Subscription.invoices)
             )
         )
         subscription = db.scalars(stmt).first()
@@ -114,7 +117,16 @@ class InvoiceService:
             )
 
         # 7. Calculate Line Items and Historical Snapshots using TaxService
-        tax_rate = TaxService.validate_tax_rate(payload.tax_rate)
+        # Check if an explicit tax rate override was provided in payload
+        explicit_tax_rate = TaxService.validate_tax_rate(payload.tax_rate) if payload.tax_rate is not None else None
+
+        # Build quotation line-item tax rate lookup if subscription originated from a quotation
+        quotation_tax_map = {}
+        if subscription.quotation and subscription.quotation.items:
+            for q_item in subscription.quotation.items:
+                if q_item.tax_rate is not None:
+                    quotation_tax_map[q_item.product_id] = q_item.tax_rate
+
         invoice_items: List[InvoiceItem] = []
         item_tuples = []
         item_taxes: List[Decimal] = []
@@ -126,8 +138,15 @@ class InvoiceService:
             if item.unit_price < Decimal("0.00"):
                 raise BadRequestException(f"Invalid unit price {item.unit_price} for subscription item {item.id}.")
 
-            line_tax = TaxService.calculate_item_tax(item.unit_price, item.quantity, tax_rate)
-            line_total = TaxService.calculate_item_line_total(item.unit_price, item.quantity, tax_rate)
+            if explicit_tax_rate is not None:
+                item_tax_rate = explicit_tax_rate
+            elif item.product_id in quotation_tax_map:
+                item_tax_rate = quotation_tax_map[item.product_id]
+            else:
+                item_tax_rate = Decimal("0.00")
+
+            line_tax = TaxService.calculate_item_tax(item.unit_price, item.quantity, item_tax_rate)
+            line_total = TaxService.calculate_item_line_total(item.unit_price, item.quantity, item_tax_rate)
             item_tuples.append((item.unit_price, item.quantity))
             item_taxes.append(line_tax)
             total_quantity += item.quantity
@@ -142,7 +161,7 @@ class InvoiceService:
                 description=desc,
                 quantity=item.quantity,
                 unit_price=item.unit_price,
-                tax_rate=tax_rate,
+                tax_rate=item_tax_rate,
                 line_total=line_total
             )
             invoice_items.append(inv_item)
@@ -179,7 +198,21 @@ class InvoiceService:
                     f"Fixed discount of {discount_amount} cannot exceed eligible subtotal of {subtotal}."
                 )
         else:
-            discount_amount = Decimal("0.00")
+            # Check if this is the initial invoice for a subscription converted from a quotation
+            # with an agreed-upon quotation-level discount
+            active_invoices_count = db.scalar(
+                select(func.count(Invoice.id)).where(
+                    Invoice.subscription_id == subscription.id,
+                    Invoice.status != InvoiceStatus.CANCELLED
+                )
+            ) or 0
+
+            if active_invoices_count == 0 and subscription.quotation and subscription.quotation.discount_amount:
+                # Carry over the negotiated quotation discount to the initial invoice
+                quote_discount = subscription.quotation.discount_amount
+                discount_amount = min(quote_discount, subtotal)
+            else:
+                discount_amount = Decimal("0.00")
 
         total = max(Decimal("0.00"), (subtotal + tax_amount - discount_amount).quantize(Decimal("0.01")))
         balance_due = total
