@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, Link } from 'react-router-dom';
 import {
-  Menu, X, Shield, UserCheck, User, Search, Bell,
+  Menu, X, User, Search, Bell,
   Settings, LogOut, CheckCircle, AlertTriangle, ArrowRight, Clock
 } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -14,7 +14,7 @@ import { customerService, subscriptionService, invoiceService } from '../../serv
 export function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const { user, roleUpper, loginAsDemo, logout } = useAuth();
+  const { user, roleUpper, logout } = useAuth();
   const navigate = useNavigate();
   const addToast = useToast();
 
@@ -111,16 +111,6 @@ export function DashboardLayout() {
     runSearch();
   }, [searchQuery]);
 
-  const handleSwitchRole = (roleKey) => {
-    const nextUser = loginAsDemo(roleKey);
-    addToast(`Switched active test role to ${nextUser.role} (${nextUser.name})`, 'info');
-    if (roleKey.toLowerCase() === 'customer') {
-      navigate('/portal');
-    } else {
-      navigate('/');
-    }
-  };
-
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -193,44 +183,6 @@ export function DashboardLayout() {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Role Demo Switcher */}
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium">
-              <span className="text-[11px] text-slate-400 px-2 font-semibold uppercase tracking-wider">Test Role:</span>
-              <button
-                type="button"
-                onClick={() => handleSwitchRole('admin')}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  roleUpper === 'ADMIN'
-                    ? 'bg-purple-600 text-white shadow-xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                }`}
-              >
-                <Shield className="w-3 h-3" /> Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSwitchRole('staff')}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  roleUpper === 'STAFF'
-                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                }`}
-              >
-                <UserCheck className="w-3 h-3" /> Staff
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSwitchRole('customer')}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
-                  roleUpper === 'CUSTOMER'
-                    ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                }`}
-              >
-                <User className="w-3 h-3" /> Customer
-              </button>
-            </div>
-
             {/* Mobile Search Button */}
             <button
               type="button"
