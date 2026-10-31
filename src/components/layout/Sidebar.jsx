@@ -13,17 +13,17 @@ const ALL_NAV = [
   // Customer Self-Service Portal
   { to: '/portal', label: 'My Portal', icon: UserCheck, roles: ['CUSTOMER', 'ADMIN'] },
 
-  // Operational Modules
+  // Operational Modules (Admin & Staff)
   { to: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'STAFF'] },
   { to: '/products', label: 'Products', icon: Package, roles: ['ADMIN', 'STAFF'] },
   { to: '/plans', label: 'Subscription Plans', icon: CreditCard, roles: ['ADMIN', 'STAFF'] },
   { to: '/quotations', label: 'Quotations', icon: FileText, roles: ['ADMIN', 'STAFF'] },
-  { to: '/subscriptions', label: 'Subscriptions', icon: Repeat, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/subscriptions', label: 'Subscriptions', icon: Repeat, roles: ['ADMIN', 'STAFF'] },
   { to: '/discounts', label: 'Discounts', icon: Tag, roles: ['ADMIN', 'STAFF'] },
-  { to: '/invoices', label: 'Invoices', icon: Receipt, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
-  { to: '/payments', label: 'Payments', icon: DollarSign, roles: ['ADMIN', 'STAFF', 'CUSTOMER'] },
+  { to: '/invoices', label: 'Invoices', icon: Receipt, roles: ['ADMIN', 'STAFF'] },
+  { to: '/payments', label: 'Payments', icon: DollarSign, roles: ['ADMIN', 'STAFF'] },
 
-  // Administration
+  // Administration (Admin Only)
   { to: '/users', label: 'Users & Roles', icon: UserCog, roles: ['ADMIN'] },
   { to: '/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },
 ];

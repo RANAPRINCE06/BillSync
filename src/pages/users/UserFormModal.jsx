@@ -77,7 +77,7 @@ export function UserFormModal({ isOpen, onClose, onSaved, user }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={user ? 'Edit User & Role' : 'Add System User'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={user ? 'Edit Staff Details' : 'Add Staff Member'}>
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Input
           label="Full Name"
@@ -99,8 +99,8 @@ export function UserFormModal({ isOpen, onClose, onSaved, user }) {
         />
 
         <Select label="Assigned System Role" value={form.role} onChange={set('role')} required>
-          <option value="ADMIN">Admin (Full Access & Settings)</option>
           <option value="STAFF">Staff (Operations & Client Management)</option>
+          <option value="ADMIN">Admin (Full Access & Settings)</option>
           <option value="CUSTOMER">Customer (Self-service Portal Only)</option>
         </Select>
 
@@ -122,7 +122,7 @@ export function UserFormModal({ isOpen, onClose, onSaved, user }) {
             Cancel
           </Button>
           <Button type="submit" loading={loading}>
-            {user ? 'Update User' : 'Create User'}
+            {user ? 'Save Changes' : 'Create Staff Member'}
           </Button>
         </div>
       </form>

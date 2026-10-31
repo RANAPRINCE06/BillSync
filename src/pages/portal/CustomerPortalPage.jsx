@@ -2,22 +2,19 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard, Repeat, Receipt, CheckCircle, Clock,
-  Printer, ArrowUpRight, ShieldCheck, Download
+  Printer, ArrowUpRight, ShieldCheck, Download,
+  Building, Mail, Phone, MapPin, Eye, X
 } from 'lucide-react';
-import { subscriptionService, invoiceService, paymentService } from '../../services';
+import { subscriptionService, invoiceService, paymentService, customerService } from '../../services';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { PageHeader } from '../../components/ui/Common';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Table, TableHead, Th, TableBody, Td, TableEmpty } from '../../components/ui/Table';
-import { Button } from '../../components/ui/Button';
-import { StatusBadge } from '../../components/ui/Badge';
+import { Button, IconButton } from '../../components/ui/Button';
+import { StatusBadge, Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
 import { PageSpinner } from '../../components/ui/Feedback';
-
-function formatCurrency(val) {
-  if (val === undefined || val === null) return '—';
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
-}
+import { formatCurrency } from '../../utils/quotationCalculations';
 
 function formatDate(str) {
   if (!str) return '—';
@@ -29,125 +26,220 @@ export default function CustomerPortalPage() {
   const navigate = useNavigate();
   const addToast = useToast();
 
+  const [customerProfile, setCustomerProfile] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Modals for portal self-service inspection
+  const [viewSub, setViewSub] = useState(null);
+  const [viewInv, setViewInv] = useState(null);
+
   useEffect(() => {
     const fetchPortalData = async () => {
       setLoading(true);
       try {
-        const [subsRes, invRes, payRes] = await Promise.all([
+        const [custRes, subsRes, invRes, payRes] = await Promise.all([
+          customerService.getAll(),
           subscriptionService.getAll(),
           invoiceService.getAll(),
           paymentService.getAll(),
         ]);
-        setSubscriptions(Array.isArray(subsRes.data) ? subsRes.data : subsRes.data?.items || []);
-        setInvoices(Array.isArray(invRes.data) ? invRes.data : invRes.data?.items || []);
-        setPayments(Array.isArray(payRes.data) ? payRes.data : payRes.data?.items || []);
+
+        const allCustomers = Array.isArray(custRes.data) ? custRes.data : custRes.data?.items || [];
+        const allSubs = Array.isArray(subsRes.data) ? subsRes.data : subsRes.data?.items || [];
+        const allInvs = Array.isArray(invRes.data) ? invRes.data : invRes.data?.items || [];
+        const allPays = Array.isArray(payRes.data) ? payRes.data : payRes.data?.items || [];
+
+        // Identify the matching customer profile strictly for this user
+        const userEmail = (user?.email || '').toLowerCase();
+        let myCustomer = allCustomers.find(
+          (c) =>
+            (c.email && c.email.toLowerCase() === userEmail) ||
+            (userEmail === 'customer@billsync.com' && c.id === 'cust-001') ||
+            (user?.name && c.name.toLowerCase().includes(user.name.toLowerCase()))
+        );
+
+        if (!myCustomer && allCustomers.length > 0) {
+          myCustomer = allCustomers[0];
+        }
+
+        setCustomerProfile(myCustomer);
+
+        if (myCustomer) {
+          const custId = String(myCustomer.id);
+          // Strictly isolate records to only this customer's account
+          const mySubs = allSubs.filter((s) => String(s.customer_id) === custId);
+          const myInvs = allInvs.filter((i) => String(i.customer_id) === custId);
+          const myInvIds = new Set(myInvs.map((i) => String(i.id)));
+          const myPays = allPays.filter(
+            (p) => String(p.customer_id) === custId || (p.invoice_id && myInvIds.has(String(p.invoice_id)))
+          );
+
+          setSubscriptions(mySubs);
+          setInvoices(myInvs);
+          setPayments(myPays);
+        }
       } catch {
         addToast('Failed to load customer portal details', 'error');
       } finally {
         setLoading(false);
       }
     };
+
     fetchPortalData();
-  }, []);
+  }, [user]);
 
   if (loading) return <PageSpinner />;
 
-  const activeSub = subscriptions.find((s) => s.status === 'ACTIVE') || subscriptions[0];
-  const outstandingInvoices = invoices.filter((i) => i.balance_due > 0 && i.status !== 'CANCELLED');
-  const totalDue = outstandingInvoices.reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
+  const activeSubs = subscriptions.filter((s) => s.status === 'ACTIVE');
+  const outstandingInvoices = invoices.filter((i) => (i.balance_due || 0) > 0 && i.status !== 'CANCELLED');
+  const totalBalanceDue = outstandingInvoices.reduce(
+    (sum, i) => sum + Number(i.balance_due ?? (i.total || 0) - (i.amount_paid || 0)),
+    0
+  );
+  const overdueBalance = invoices
+    .filter((i) => i.status === 'OVERDUE' && (i.balance_due || 0) > 0)
+    .reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-xs mb-2">
             <ShieldCheck className="w-3.5 h-3.5" /> Customer Self-Service Portal
           </span>
-          <h1 className="text-2xl font-bold">Welcome, {user?.name || 'Valued Client'}</h1>
-          <p className="text-blue-100 text-sm mt-0.5">Manage your active plans, invoices, and service subscriptions.</p>
+          <h1 className="text-2xl font-bold">
+            Welcome, {customerProfile?.name || user?.name || 'Valued Client'}
+          </h1>
+          <p className="text-blue-100 text-xs sm:text-sm mt-0.5">
+            {customerProfile?.company ? `${customerProfile.company} • ` : ''}Client ID: {customerProfile?.id || 'CUST-001'}
+          </p>
         </div>
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20 backdrop-blur-xs text-right min-w-[200px]">
-          <p className="text-xs text-blue-200 uppercase font-semibold">Total Balance Due</p>
-          <p className="text-2xl font-bold mt-0.5">{formatCurrency(totalDue)}</p>
-          {totalDue > 0 && (
-            <Button
-              size="sm"
-              className="mt-2 w-full bg-white text-blue-800 hover:bg-blue-50 border-white text-xs font-semibold"
-              onClick={() => navigate('/payments')}
-            >
-              Pay Now
-            </Button>
+
+        <div className="bg-white/10 rounded-xl p-4 border border-white/20 backdrop-blur-xs text-right min-w-[220px]">
+          <p className="text-xs text-blue-200 uppercase font-semibold">Total Outstanding Balance</p>
+          <p className="text-2xl font-bold mt-0.5">{formatCurrency(totalBalanceDue)}</p>
+          {overdueBalance > 0 && (
+            <p className="text-[11px] text-amber-200 font-medium mt-1">
+              Includes {formatCurrency(overdueBalance)} overdue
+            </p>
           )}
         </div>
       </div>
 
-      {/* Active Subscription Overview Card */}
-      {activeSub && (
-        <Card className="border-blue-100 bg-white">
+      {/* Customer Profile & Account Details Card */}
+      {customerProfile && (
+        <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Repeat className="w-5 h-5 text-blue-600" />
-              <CardTitle>Current Active Subscription Agreement</CardTitle>
+              <Building className="w-4 h-4 text-blue-600" />
+              <CardTitle>My Account Profile</CardTitle>
             </div>
-            <StatusBadge status={activeSub.status} />
+            <Badge label="Registered Customer" variant="info" />
           </CardHeader>
-          <CardBody>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 mb-4">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Subscription #</p>
-                <p className="text-sm font-semibold text-slate-900 mt-0.5">{activeSub.subscription_number}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Plan Tier</p>
-                <p className="text-sm font-semibold text-slate-900 mt-0.5">{activeSub.plan_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Billing Interval</p>
-                <p className="text-sm font-semibold text-slate-900 mt-0.5 capitalize">{activeSub.billing_interval?.toLowerCase()}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Next Renewal</p>
-                <p className="text-sm font-semibold text-blue-700 mt-0.5">{formatDate(activeSub.next_billing_date)}</p>
-              </div>
+          <CardBody className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div>
+              <span className="text-slate-400 block uppercase font-medium">Customer Name</span>
+              <p className="text-sm font-semibold text-slate-900 mt-0.5">{customerProfile.name}</p>
             </div>
 
-            {activeSub.items && activeSub.items.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Included Products & Services</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {activeSub.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs p-2.5 rounded-lg border border-slate-200 bg-white">
-                      <span className="font-medium text-slate-800">{item.product_name}</span>
-                      <span className="text-slate-500 font-semibold">{formatCurrency(item.unit_price)} x {item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <span className="text-slate-400 block uppercase font-medium">Organization / Company</span>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">
+                {customerProfile.company || 'Individual Client'}
+              </p>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block uppercase font-medium">Contact Email</span>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">{customerProfile.email}</p>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block uppercase font-medium">Phone Number</span>
+              <p className="text-sm font-semibold text-slate-800 mt-0.5">{customerProfile.phone || '—'}</p>
+            </div>
+
+            {customerProfile.address && (
+              <div className="lg:col-span-4 border-t border-slate-100 pt-3">
+                <span className="text-slate-400 block uppercase font-medium">Billing & Delivery Address</span>
+                <p className="text-slate-700 mt-0.5 leading-relaxed">{customerProfile.address}</p>
               </div>
             )}
           </CardBody>
         </Card>
       )}
 
-      {/* Invoices & Receipts Grid */}
+      {/* My Subscriptions Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Repeat className="w-4 h-4 text-blue-600" />
+            <CardTitle>My Subscription Agreements ({subscriptions.length})</CardTitle>
+          </div>
+        </CardHeader>
+        <Table>
+          <TableHead>
+            <Th>Subscription #</Th>
+            <Th>Plan Tier</Th>
+            <Th>Billing Interval</Th>
+            <Th>Start Date</Th>
+            <Th>Next Renewal</Th>
+            <Th>Recurring Charge</Th>
+            <Th>Status</Th>
+            <Th className="text-right">Action</Th>
+          </TableHead>
+          {subscriptions.length === 0 ? (
+            <TableEmpty message="You have no active or historical subscriptions on record." cols={8} />
+          ) : (
+            <TableBody>
+              {subscriptions.map((sub) => {
+                const total =
+                  sub.total_amount ??
+                  sub.total ??
+                  (sub.items || []).reduce((acc, it) => acc + (it.line_total || it.quantity * it.unit_price || 0), 0);
+                return (
+                  <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                    <Td className="font-mono text-xs font-semibold text-slate-900">
+                      {sub.subscription_number || `#${sub.id}`}
+                    </Td>
+                    <Td className="font-semibold text-slate-800">{sub.plan_name || 'Service Plan'}</Td>
+                    <Td>
+                      <StatusBadge status={sub.billing_interval || 'MONTHLY'} />
+                    </Td>
+                    <Td>{formatDate(sub.start_date)}</Td>
+                    <Td className="font-medium text-blue-700">{formatDate(sub.next_billing_date)}</Td>
+                    <Td className="font-bold text-slate-900">{formatCurrency(total)}</Td>
+                    <Td>
+                      <StatusBadge status={sub.status} />
+                    </Td>
+                    <Td>
+                      <div className="flex justify-end">
+                        <Button variant="secondary" size="sm" onClick={() => setViewSub(sub)}>
+                          <Eye className="w-3.5 h-3.5" /> View Details
+                        </Button>
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </TableBody>
+          )}
+        </Table>
+      </Card>
+
+      {/* Invoices & Payments Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Invoices */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-slate-600" />
-              <CardTitle>Invoices & Billing History</CardTitle>
+              <Receipt className="w-4 h-4 text-blue-600" />
+              <CardTitle>My Invoices & Statements ({invoices.length})</CardTitle>
             </div>
-            <button
-              onClick={() => navigate('/invoices')}
-              className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-0.5"
-            >
-              All Invoices <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
           </CardHeader>
           <Table>
             <TableHead>
@@ -156,40 +248,54 @@ export default function CustomerPortalPage() {
               <Th>Total</Th>
               <Th>Balance</Th>
               <Th>Status</Th>
+              <Th className="text-right">Action</Th>
             </TableHead>
             {invoices.length === 0 ? (
-              <TableEmpty message="No invoices issued yet." cols={5} />
+              <TableEmpty message="No invoices issued for your account." cols={6} />
             ) : (
               <TableBody>
-                {invoices.slice(0, 5).map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                    <Td className="font-mono text-xs font-semibold text-slate-900">{inv.invoice_number}</Td>
-                    <Td>{formatDate(inv.due_date)}</Td>
-                    <Td className="font-medium">{formatCurrency(inv.total)}</Td>
-                    <Td className={inv.balance_due > 0 ? 'text-red-600 font-semibold' : 'text-slate-500'}>
-                      {formatCurrency(inv.balance_due)}
-                    </Td>
-                    <Td><StatusBadge status={inv.status} /></Td>
-                  </tr>
-                ))}
+                {invoices.map((inv) => {
+                  const bal = inv.balance_due !== undefined
+                    ? inv.balance_due
+                    : Math.max(0, (inv.total || 0) - (inv.amount_paid || 0));
+                  return (
+                    <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                      <Td className="font-mono text-xs font-semibold text-slate-900">
+                        {inv.invoice_number || `INV-${inv.id}`}
+                      </Td>
+                      <Td>{formatDate(inv.due_date)}</Td>
+                      <Td className="font-medium text-slate-900">{formatCurrency(inv.total)}</Td>
+                      <Td className={bal > 0 ? 'text-red-600 font-bold' : 'text-slate-500'}>
+                        {formatCurrency(bal)}
+                      </Td>
+                      <Td>
+                        <StatusBadge status={inv.status} />
+                      </Td>
+                      <Td>
+                        <div className="flex justify-end">
+                          <IconButton
+                            icon={Eye}
+                            label="Inspect invoice"
+                            onClick={() => setViewInv(inv)}
+                            className="text-slate-500 hover:text-blue-600"
+                          />
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
               </TableBody>
             )}
           </Table>
         </Card>
 
-        {/* Payments */}
+        {/* Payment History */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-emerald-600" />
-              <CardTitle>Confirmed Payment Receipts</CardTitle>
+              <CardTitle>Payment History & Receipts ({payments.length})</CardTitle>
             </div>
-            <button
-              onClick={() => navigate('/payments')}
-              className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-0.5"
-            >
-              All Receipts <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
           </CardHeader>
           <Table>
             <TableHead>
@@ -203,13 +309,17 @@ export default function CustomerPortalPage() {
               <TableEmpty message="No payment transactions logged." cols={5} />
             ) : (
               <TableBody>
-                {payments.slice(0, 5).map((p) => (
+                {payments.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                    <Td className="font-mono text-xs font-semibold text-slate-900">{p.payment_reference}</Td>
-                    <Td className="font-mono text-xs">{p.invoice_number}</Td>
-                    <Td>{formatDate(p.payment_date)}</Td>
-                    <Td className="capitalize font-medium text-slate-600">{p.payment_method?.replace(/_/g, ' ')}</Td>
-                    <Td className="font-semibold text-emerald-700">{formatCurrency(p.amount)}</Td>
+                    <Td className="font-mono text-xs font-semibold text-slate-900">
+                      {p.payment_reference || `#${p.id}`}
+                    </Td>
+                    <Td className="font-mono text-xs text-blue-700">{p.invoice_number || '—'}</Td>
+                    <Td>{formatDate(p.payment_date || p.created_at)}</Td>
+                    <Td>
+                      <StatusBadge status={p.payment_method} />
+                    </Td>
+                    <Td className="font-bold text-emerald-700">{formatCurrency(p.amount)}</Td>
                   </tr>
                 ))}
               </TableBody>
@@ -217,7 +327,141 @@ export default function CustomerPortalPage() {
           </Table>
         </Card>
       </div>
+
+      {/* Subscription Details Modal */}
+      <Modal
+        isOpen={Boolean(viewSub)}
+        onClose={() => setViewSub(null)}
+        title={`Subscription Agreement ${viewSub?.subscription_number || ''}`}
+        size="md"
+      >
+        {viewSub && (
+          <div className="space-y-4 text-xs">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Plan Tier</span>
+                <p className="font-bold text-slate-900 mt-0.5">{viewSub.plan_name}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Agreement Status</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={viewSub.status} />
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Start Date</span>
+                <p className="font-semibold text-slate-800 mt-0.5">{formatDate(viewSub.start_date)}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Next Renewal</span>
+                <p className="font-bold text-blue-700 mt-0.5">{formatDate(viewSub.next_billing_date)}</p>
+              </div>
+            </div>
+
+            {viewSub.items && viewSub.items.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="font-semibold text-slate-800 block uppercase">Provisioned Product Line Items</span>
+                <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
+                  {viewSub.items.map((it, idx) => (
+                    <div key={idx} className="p-2.5 flex justify-between items-center bg-white">
+                      <div>
+                        <span className="font-semibold text-slate-900 block">{it.product_name || it.name}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {formatCurrency(it.unit_price)} × {it.quantity} unit(s)
+                        </span>
+                      </div>
+                      <span className="font-bold text-slate-900">
+                        {formatCurrency(it.line_total || it.quantity * it.unit_price)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setViewSub(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Invoice Details Modal */}
+      <Modal
+        isOpen={Boolean(viewInv)}
+        onClose={() => setViewInv(null)}
+        title={`Invoice Statement ${viewInv?.invoice_number || ''}`}
+        size="md"
+      >
+        {viewInv && (
+          <div className="space-y-4 text-xs">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Invoice Number</span>
+                <p className="font-mono font-bold text-slate-900 mt-0.5">{viewInv.invoice_number}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Payment Status</span>
+                <div className="mt-0.5">
+                  <StatusBadge status={viewInv.status} />
+                </div>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Issue Date</span>
+                <p className="font-semibold text-slate-800 mt-0.5">{formatDate(viewInv.issue_date || viewInv.created_at)}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase font-medium">Payment Due Date</span>
+                <p className="font-bold text-red-600 mt-0.5">{formatDate(viewInv.due_date)}</p>
+              </div>
+            </div>
+
+            {/* Financial Totals Breakdown */}
+            <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-1.5">
+              <div className="flex justify-between text-slate-600">
+                <span>Subtotal:</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(viewInv.subtotal)}</span>
+              </div>
+              {Number(viewInv.discount_amount) > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Discount:</span>
+                  <span>-{formatCurrency(viewInv.discount_amount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-slate-600">
+                <span>Taxes:</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(viewInv.tax_amount)}</span>
+              </div>
+              <div className="border-t border-slate-100 pt-1.5 flex justify-between font-bold text-slate-900 text-sm">
+                <span>Total Amount:</span>
+                <span>{formatCurrency(viewInv.total)}</span>
+              </div>
+              <div className="flex justify-between text-emerald-700 font-medium">
+                <span>Amount Paid:</span>
+                <span>{formatCurrency(viewInv.amount_paid || 0)}</span>
+              </div>
+              <div className="border-t border-slate-100 pt-1.5 flex justify-between font-bold text-red-600 text-sm">
+                <span>Outstanding Balance:</span>
+                <span>
+                  {formatCurrency(
+                    viewInv.balance_due !== undefined
+                      ? viewInv.balance_due
+                      : Math.max(0, (viewInv.total || 0) - (viewInv.amount_paid || 0))
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setViewInv(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
-
