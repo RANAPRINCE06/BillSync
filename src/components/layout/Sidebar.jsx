@@ -50,13 +50,13 @@ export function Sidebar({ collapsed }) {
     >
       {/* Logo */}
       <div className="h-16 flex items-center px-4 border-b border-slate-100 shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 shadow-xs">
-          <Zap className="w-4 h-4 text-white" />
+        <div className="w-9 h-9 flex items-center justify-center shrink-0">
+          <img src="/logo.png" alt="BillSync Logo" className="w-9 h-9 object-contain drop-shadow-xs" />
         </div>
         {!collapsed && (
-          <div className="ml-3">
+          <div className="ml-2.5">
             <span className="text-base font-bold text-slate-900 block leading-tight">BillSync</span>
-            <span className="text-[10px] text-slate-400 font-medium block">Subscription SaaS</span>
+            <span className="text-[10px] text-blue-600 font-semibold block uppercase tracking-wider">Subscription SaaS</span>
           </div>
         )}
       </div>

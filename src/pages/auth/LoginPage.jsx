@@ -66,8 +66,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center mx-auto mb-3 shadow-md shadow-blue-500/20">
-            <Zap className="w-6 h-6 text-white" />
+          <div className="w-16 h-16 flex items-center justify-center mx-auto mb-3">
+            <img src="/logo.png" alt="BillSync Logo" className="w-16 h-16 object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Sign in to BillSync</h1>
           <p className="text-sm text-slate-500 mt-1">Subscription Management System</p>
