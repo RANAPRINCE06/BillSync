@@ -1,6 +1,6 @@
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.dependencies.auth import get_current_user
@@ -91,6 +91,34 @@ def get_invoice_by_id(
         current_user=current_user
     )
     return invoice
+
+
+@router.get(
+    "/{invoice_id}/pdf",
+    response_class=Response,
+    status_code=status.HTTP_200_OK,
+    summary="Download Invoice PDF",
+    description="Generates and streams a professional PDF document for the requested invoice."
+)
+def download_invoice_pdf(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Response:
+    """Download invoice PDF with customer data ownership enforcement."""
+    pdf_bytes, filename = InvoiceService.get_invoice_pdf(
+        db=db,
+        invoice_id=invoice_id,
+        current_user=current_user
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/pdf"
+        }
+    )
 
 
 @router.get(

@@ -35,7 +35,7 @@ class InvoiceGenerateRequest(BaseModel):
     billing_period_start: Optional[datetime] = Field(None, description="Billing cycle start")
     billing_period_end: Optional[datetime] = Field(None, description="Billing cycle end")
     tax_rate: Optional[Decimal] = Field(None, ge=0, le=100, description="Tax rate override percentage")
-    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=0, description="Optional manual discount amount")
+    discount_amount: Optional[Decimal] = Field(default=None, ge=0, description="Optional manual discount amount override")
     discount_id: Optional[uuid.UUID] = Field(None, description="Optional Discount entity UUID to apply")
     discount_code: Optional[str] = Field(None, description="Optional promo code or discount policy name")
 
