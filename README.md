@@ -173,32 +173,6 @@ BillSync provides three distinct access tiers:
 
 ---
 
-## ⚡ Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-
-### 1. Clone & Install
-```bash
-git clone https://github.com/RANAPRINCE06/BillSync.git
-cd BillSync
-npm install
-```
-
-### 2. Start Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:8000](http://localhost:8000) in your browser.
-
-### 3. Production Build
-```bash
-npm run build
-npm run preview
-```
-
----
 
 ## 👥 Team & Responsibilities
 
