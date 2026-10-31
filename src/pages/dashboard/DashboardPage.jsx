@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Users, Repeat, DollarSign, AlertCircle, FileText,
-  RotateCcw, Filter, Calendar, CreditCard, ChevronRight
+  RotateCcw, Filter, Calendar, CreditCard, ChevronRight, TrendingUp
 } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { dashboardService, paymentService } from '../../services';
 import { getErrorMessage } from '../../services/api';
@@ -35,7 +35,8 @@ export default function DashboardPage() {
   const [recentSubs, setRecentSubs] = useState([]);
   const [recentInvoices, setRecentInvoices] = useState([]);
   const [recentPayments, setRecentPayments] = useState([]);
-  const [chartData, setChartData] = useState([]);
+  const [revenueChartData, setRevenueChartData] = useState([]);
+  const [subChartData, setSubChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,11 +47,12 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [statsRes, subsRes, invRes, chartRes, payRes] = await Promise.all([
+      const [statsRes, subsRes, invRes, chartRes, subChartRes, payRes] = await Promise.all([
         dashboardService.getStats().catch(() => ({ data: null })),
         dashboardService.getRecentSubscriptions().catch(() => ({ data: [] })),
         dashboardService.getRecentInvoices().catch(() => ({ data: [] })),
         dashboardService.getRevenueChart().catch(() => ({ data: [] })),
+        dashboardService.getSubscriptionChart ? dashboardService.getSubscriptionChart().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         paymentService.getAll().catch(() => ({ data: [] })),
       ]);
 
@@ -70,7 +72,10 @@ export default function DashboardPage() {
       setRecentPayments(pays.slice(0, 5));
 
       const rawChart = Array.isArray(chartRes.data) ? chartRes.data : chartRes.data?.items || [];
-      setChartData(chartPeriod === '6M' ? rawChart.slice(-6) : rawChart);
+      setRevenueChartData(chartPeriod === '6M' ? rawChart.slice(-6) : rawChart);
+
+      const rawSubChart = Array.isArray(subChartRes.data) ? subChartRes.data : subChartRes.data?.items || [];
+      setSubChartData(chartPeriod === '6M' ? rawSubChart.slice(-6) : rawSubChart);
     } catch (err) {
       addToast(getErrorMessage(err, 'Failed to load dashboard metrics'), 'error');
     } finally {
@@ -91,6 +96,8 @@ export default function DashboardPage() {
 
   if (loading) return <PageSpinner />;
 
+  const totalRevenue = stats?.total_revenue ?? ((stats?.revenue_received || 0) + (stats?.outstanding_payments || 0));
+
   return (
     <div className="space-y-6">
       {/* Top Header with Date & Status Filters and Refresh Button */}
@@ -98,7 +105,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time financial performance and subscription health
+            Real-time financial performance and subscription trends
           </p>
         </div>
 
@@ -148,9 +155,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Interactive KPI Cards */}
+      {/* 5 Core Summary Cards Requested */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {/* Active Subscriptions Card */}
+        {/* 1. Active Subscriptions Card */}
         <div
           onClick={() => navigate('/subscriptions')}
           className="cursor-pointer transition-transform hover:-translate-y-0.5"
@@ -165,37 +172,37 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Total Customers Card */}
+        {/* 2. Total Revenue Card */}
         <div
-          onClick={() => navigate('/customers')}
+          onClick={() => navigate('/invoices')}
           className="cursor-pointer transition-transform hover:-translate-y-0.5"
-          title="Click to view registered clients"
+          title="Click to view all invoices and revenue"
         >
           <StatCard
-            icon={Users}
-            label="Total Customers"
-            value={stats?.total_customers ?? stats?.totalCustomers ?? 0}
-            iconBg="bg-violet-50"
-            iconColor="text-violet-600"
+            icon={DollarSign}
+            label="Total Revenue"
+            value={formatCurrency(totalRevenue)}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
           />
         </div>
 
-        {/* Revenue Received Card */}
+        {/* 3. Payments Received Card */}
         <div
           onClick={() => navigate('/payments')}
           className="cursor-pointer transition-transform hover:-translate-y-0.5"
           title="Click to view payment history"
         >
           <StatCard
-            icon={DollarSign}
-            label="Revenue Received"
+            icon={CreditCard}
+            label="Payments Received"
             value={formatCurrency(stats?.revenue_received ?? stats?.revenueReceived)}
             iconBg="bg-emerald-50"
             iconColor="text-emerald-600"
           />
         </div>
 
-        {/* Outstanding Balance Card */}
+        {/* 4. Outstanding Amount Card */}
         <div
           onClick={() => navigate('/invoices')}
           className="cursor-pointer transition-transform hover:-translate-y-0.5"
@@ -203,14 +210,14 @@ export default function DashboardPage() {
         >
           <StatCard
             icon={AlertCircle}
-            label="Outstanding Balance"
+            label="Outstanding Amount"
             value={formatCurrency(stats?.outstanding_payments ?? stats?.outstandingPayments)}
             iconBg="bg-amber-50"
             iconColor="text-amber-600"
           />
         </div>
 
-        {/* Overdue Invoices Card */}
+        {/* 5. Overdue Invoices Card */}
         <div
           onClick={() => navigate('/invoices')}
           className="cursor-pointer transition-transform hover:-translate-y-0.5"
@@ -226,12 +233,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Charts & Graphs Section */}
+      {/* Charts Section: Revenue Chart & Subscription Chart */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Revenue Trend Chart with 6M/12M toggle */}
+        {/* Revenue Trend Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue Generation Trend</CardTitle>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-blue-600" />
+              <CardTitle>Revenue Generation Trend</CardTitle>
+            </div>
             <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
               <button
                 type="button"
@@ -254,11 +264,11 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardBody>
-            {chartData.length === 0 ? (
+            {revenueChartData.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-12">No dynamic revenue data reported yet.</p>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                <AreaChart data={revenueChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2} />
@@ -279,7 +289,40 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
-        {/* Recent Subscriptions (Clickable Rows) */}
+        {/* Subscription Trends Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <CardTitle>Subscription Growth & Renewal Trends</CardTitle>
+            </div>
+            <span className="text-xs text-slate-400 font-medium">Monthly Active Agreements</span>
+          </CardHeader>
+          <CardBody>
+            {subChartData.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-12">No subscription data reported yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={subChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                  <Bar dataKey="subscriptions" name="Active Agreements" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="renewals" name="Term Renewals" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Recent Activities Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Recent Subscriptions */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Subscriptions</CardTitle>
@@ -292,11 +335,10 @@ export default function DashboardPage() {
             <TableHead>
               <Th>Subscription #</Th>
               <Th>Customer</Th>
-              <Th>Plan</Th>
               <Th>Status</Th>
             </TableHead>
             {recentSubs.length === 0 ? (
-              <TableEmpty message="No recent subscriptions" cols={4} />
+              <TableEmpty message="No recent subscriptions" cols={3} />
             ) : (
               <TableBody>
                 {recentSubs.map((sub) => (
@@ -306,8 +348,7 @@ export default function DashboardPage() {
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <Td className="font-mono text-xs font-semibold text-blue-700">{sub.subscription_number || `#${sub.id}`}</Td>
-                    <Td className="font-medium text-slate-800">{sub.customer_name || sub.customer?.name || '—'}</Td>
-                    <Td>{sub.plan_name || sub.plan?.name || '—'}</Td>
+                    <Td className="font-medium text-slate-800 truncate max-w-[120px]">{sub.customer_name || '—'}</Td>
                     <Td>
                       <StatusBadge status={sub.status} />
                     </Td>
@@ -317,11 +358,8 @@ export default function DashboardPage() {
             )}
           </Table>
         </Card>
-      </div>
 
-      {/* Recent Invoices & Recent Payments Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Invoices (Clickable Rows) */}
+        {/* Recent Invoices */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Invoices</CardTitle>
@@ -333,13 +371,11 @@ export default function DashboardPage() {
           <Table>
             <TableHead>
               <Th>Invoice #</Th>
-              <Th>Customer</Th>
               <Th>Total</Th>
-              <Th>Balance</Th>
               <Th>Status</Th>
             </TableHead>
             {recentInvoices.length === 0 ? (
-              <TableEmpty message="No recent invoices" cols={5} />
+              <TableEmpty message="No recent invoices" cols={3} />
             ) : (
               <TableBody>
                 {recentInvoices.map((inv) => (
@@ -348,16 +384,8 @@ export default function DashboardPage() {
                     onClick={() => navigate(`/invoices/${inv.id}`)}
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                   >
-                    <Td className="font-mono text-xs font-semibold text-blue-700">{inv.invoice_number || inv.number}</Td>
-                    <Td className="font-medium text-slate-800">{inv.customer_name || '—'}</Td>
+                    <Td className="font-mono text-xs font-semibold text-blue-700">{inv.invoice_number}</Td>
                     <Td className="font-medium text-slate-900">{formatCurrency(inv.total)}</Td>
-                    <Td className={inv.balance_due > 0 ? 'text-red-600 font-semibold' : 'text-slate-600'}>
-                      {formatCurrency(
-                        inv.balance_due !== undefined
-                          ? inv.balance_due
-                          : (inv.total || 0) - (inv.amount_paid || 0)
-                      )}
-                    </Td>
                     <Td>
                       <StatusBadge status={inv.status} />
                     </Td>
@@ -368,13 +396,10 @@ export default function DashboardPage() {
           </Table>
         </Card>
 
-        {/* Recent Payment Transactions (Clickable Rows) */}
+        {/* Recent Payments */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <CardTitle>Recent Payment Transactions</CardTitle>
-            </div>
+            <CardTitle>Recent Payments</CardTitle>
             <Link to="/payments" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
               <span>View all</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -383,13 +408,11 @@ export default function DashboardPage() {
           <Table>
             <TableHead>
               <Th>Receipt Ref #</Th>
-              <Th>Customer</Th>
               <Th>Amount</Th>
               <Th>Method</Th>
-              <Th>Status</Th>
             </TableHead>
             {recentPayments.length === 0 ? (
-              <TableEmpty message="No payments recorded" cols={5} />
+              <TableEmpty message="No recent payments" cols={3} />
             ) : (
               <TableBody>
                 {recentPayments.map((p) => (
@@ -398,16 +421,10 @@ export default function DashboardPage() {
                     onClick={() => navigate('/payments')}
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                   >
-                    <Td className="font-mono text-xs font-semibold text-slate-900">
-                      {p.payment_reference || `#${p.id}`}
-                    </Td>
-                    <Td className="font-medium text-slate-800">{p.customer_name || 'Client'}</Td>
+                    <Td className="font-mono text-xs font-semibold text-slate-900">{p.payment_reference || `#${p.id}`}</Td>
                     <Td className="font-bold text-emerald-700">{formatCurrency(p.amount)}</Td>
                     <Td>
                       <StatusBadge status={p.payment_method} />
-                    </Td>
-                    <Td>
-                      <StatusBadge status={p.status || 'SUCCESSFUL'} />
                     </Td>
                   </tr>
                 ))}

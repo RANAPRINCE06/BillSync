@@ -123,6 +123,22 @@ export default function SubscriptionFormPage() {
         if (p) {
           item.name = p.name;
           item.unit_price = p.sales_price ?? p.price ?? 0;
+          item.variant_id = '';
+        }
+      } else if (field === 'variant_id') {
+        item.variant_id = value;
+        const p = products.find((x) => String(x.id) === String(item.product_id));
+        if (p) {
+          const basePrice = Number(p.sales_price ?? p.price ?? 0);
+          const variant = (p.variants || []).find((v) => (v.id || v.name) === value);
+          if (variant) {
+            const addl = Number(variant.additional_price || 0);
+            item.unit_price = basePrice + addl;
+            item.name = `${p.name} (${variant.name})`;
+          } else {
+            item.unit_price = basePrice;
+            item.name = p.name;
+          }
         }
       }
       next[i] = item;
@@ -325,6 +341,7 @@ export default function SubscriptionFormPage() {
                 <tbody className="divide-y divide-slate-100">
                   {items.map((item, i) => {
                     const lineTotal = calculateLineTotal(item.quantity, item.unit_price);
+                    const selectedProd = products.find((x) => String(x.id) === String(item.product_id));
                     return (
                       <tr key={i} className="hover:bg-slate-50/60 transition-colors">
                         <td className="px-3 py-2.5">
@@ -340,6 +357,27 @@ export default function SubscriptionFormPage() {
                               </option>
                             ))}
                           </select>
+                          {selectedProd?.variants && selectedProd.variants.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <Layers className="w-3 h-3 text-slate-400 shrink-0" />
+                              <select
+                                value={item.variant_id || ''}
+                                onChange={(e) => updateItem(i, 'variant_id', e.target.value)}
+                                className="w-full text-[11px] px-2 py-1 border border-slate-200 rounded bg-slate-50 text-slate-700 outline-none focus:border-blue-500 cursor-pointer"
+                              >
+                                <option value="">Base Variant ({formatCurrency(selectedProd.sales_price ?? selectedProd.price ?? 0)})</option>
+                                {selectedProd.variants.map((v) => {
+                                  const addl = Number(v.additional_price || 0);
+                                  const finalP = Number(selectedProd.sales_price ?? selectedProd.price ?? 0) + addl;
+                                  return (
+                                    <option key={v.id || v.name} value={v.id || v.name}>
+                                      {v.name} (+{formatCurrency(addl)} = {formatCurrency(finalP)})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
                           {errors[`item_${i}_prod`] && (
                             <p className="text-[10px] text-red-500 mt-0.5">{errors[`item_${i}_prod`]}</p>
                           )}

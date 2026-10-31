@@ -39,6 +39,8 @@ export const dashboardService = {
     USE_MOCK ? mockWrap(mockService.getRecentInvoices()) : api.get('/dashboard/recent-invoices'),
   getRevenueChart: () =>
     USE_MOCK ? mockWrap(mockService.getRevenueChart()) : api.get('/dashboard/revenue-chart'),
+  getSubscriptionChart: () =>
+    USE_MOCK ? mockWrap(mockService.getSubscriptionChart()) : api.get('/dashboard/subscription-chart'),
 };
 
 // ----------------------------------------------------------------------------

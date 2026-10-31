@@ -173,6 +173,22 @@ export default function QuotationFormPage() {
         if (prod) {
           item.name = prod.name;
           item.unit_price = prod.sales_price ?? prod.price ?? 0;
+          item.variant_id = '';
+        }
+      } else if (field === 'variant_id') {
+        item.variant_id = value;
+        const prod = products.find((x) => String(x.id) === String(item.product_id));
+        if (prod) {
+          const basePrice = Number(prod.sales_price ?? prod.price ?? 0);
+          const variant = (prod.variants || []).find((v) => (v.id || v.name) === value);
+          if (variant) {
+            const addl = Number(variant.additional_price || 0);
+            item.unit_price = basePrice + addl;
+            item.name = `${prod.name} (${variant.name})`;
+          } else {
+            item.unit_price = basePrice;
+            item.name = prod.name;
+          }
         }
       } else if (field === 'plan_id') {
         const pl = plans.find((x) => String(x.id) === String(value));
@@ -405,6 +421,7 @@ export default function QuotationFormPage() {
                   {items.map((item, i) => {
                     const lineTotal = calculateLineTotal(item.quantity, item.unit_price);
                     const isPlan = item.item_type === 'PLAN';
+                    const selectedProd = products.find((x) => String(x.id) === String(item.product_id));
 
                     return (
                       <tr key={i} className="hover:bg-slate-50/60 transition-colors">
@@ -446,6 +463,27 @@ export default function QuotationFormPage() {
                                 </option>
                               ))}
                             </select>
+                          )}
+                          {!isPlan && selectedProd?.variants && selectedProd.variants.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <Layers className="w-3 h-3 text-slate-400 shrink-0" />
+                              <select
+                                value={item.variant_id || ''}
+                                onChange={(e) => updateItem(i, 'variant_id', e.target.value)}
+                                className="w-full text-[11px] px-2 py-1 border border-slate-200 rounded bg-slate-50 text-slate-700 outline-none focus:border-blue-500 cursor-pointer"
+                              >
+                                <option value="">Base Variant ({formatCurrency(selectedProd.sales_price ?? selectedProd.price ?? 0)})</option>
+                                {selectedProd.variants.map((v) => {
+                                  const addl = Number(v.additional_price || 0);
+                                  const finalP = Number(selectedProd.sales_price ?? selectedProd.price ?? 0) + addl;
+                                  return (
+                                    <option key={v.id || v.name} value={v.id || v.name}>
+                                      {v.name} (+{formatCurrency(addl)} = {formatCurrency(finalP)})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
                           )}
                           {errors[`item_${i}_selection`] && (
                             <p className="text-[10px] text-red-500 mt-0.5">{errors[`item_${i}_selection`]}</p>
