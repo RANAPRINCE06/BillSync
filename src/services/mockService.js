@@ -1,4 +1,6 @@
 import { getMockStore, saveMockStore } from '../data/mockData';
+import { calculateFinancialRecords } from '../utils/balanceEngine';
+import { firestoreFinanceService } from './firestoreFinanceService';
 
 // Simulated latency helper
 const delay = (ms = 80) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,24 +17,20 @@ export const mockService = {
     const store = getMockStore();
     const active_subscriptions = store.subscriptions.filter((s) => s.status === 'ACTIVE').length;
     const total_customers = store.customers.length;
-    const revenue_received = store.payments
-      .filter((p) => p.status === 'SUCCESSFUL')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const outstanding_payments = store.invoices
-      .filter((i) => i.status !== 'CANCELLED' && i.status !== 'PAID')
-      .reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
-    const overdue_invoices = store.invoices.filter((i) => i.status === 'OVERDUE').length;
-    const total_revenue = store.invoices
-      .filter((i) => i.status !== 'CANCELLED')
-      .reduce((sum, i) => sum + Number(i.total || 0), 0);
+    const financial = calculateFinancialRecords(store.invoices, store.payments);
 
     return {
       active_subscriptions,
       total_customers,
-      total_revenue,
-      revenue_received,
-      outstanding_payments,
-      overdue_invoices,
+      total_invoiced: financial.totalInvoiced,
+      total_revenue: financial.totalInvoiced,
+      total_received: financial.totalReceived,
+      revenue_received: financial.totalReceived,
+      total_balance: financial.totalBalance,
+      outstanding_payments: financial.totalBalance,
+      overdue_balance: financial.overdueBalance,
+      overdue_invoices: financial.overdueInvoicesCount,
+      invoice_breakdowns: financial.invoiceBreakdowns,
     };
   },
 
@@ -464,8 +462,8 @@ export const mockService = {
       created_at: new Date().toISOString(),
     };
     store.invoices.unshift(newInv);
-
     saveMockStore(store);
+    firestoreFinanceService.saveInvoice(newInv);
     return { subscription: newSub, invoice: newInv };
   },
 
@@ -767,6 +765,7 @@ export const mockService = {
     if (!inv) throw new Error('Invoice not found');
     inv.status = 'CONFIRMED';
     saveMockStore(store);
+    firestoreFinanceService.updateInvoiceStatus(id, 'CONFIRMED');
     return inv;
   },
 
@@ -778,6 +777,7 @@ export const mockService = {
     inv.status = 'CANCELLED';
     inv.balance_due = 0;
     saveMockStore(store);
+    firestoreFinanceService.updateInvoiceStatus(id, 'CANCELLED');
     return inv;
   },
 
@@ -959,6 +959,8 @@ export const mockService = {
 
     store.payments.unshift(newPayment);
     saveMockStore(store);
+    firestoreFinanceService.recordPayment(newPayment);
+    firestoreFinanceService.saveInvoice(inv);
     return newPayment;
   },
 

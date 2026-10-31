@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD8DC7spk2G52BNR8PvfDLWMcoS7yFSJAo",
@@ -14,6 +15,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 let analytics = null;
+let db = null;
+
+try {
+  db = getFirestore(app);
+} catch (error) {
+  console.warn("Cloud Firestore initialization warning:", error);
+}
 
 if (typeof window !== "undefined") {
   isSupported()
@@ -27,4 +35,4 @@ if (typeof window !== "undefined") {
     });
 }
 
-export { app, analytics };
+export { app, analytics, db };

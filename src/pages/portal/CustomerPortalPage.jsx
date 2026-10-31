@@ -15,6 +15,7 @@ import { StatusBadge, Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { PageSpinner } from '../../components/ui/Feedback';
 import { formatCurrency } from '../../utils/quotationCalculations';
+import { calculateFinancialRecords, formatINR } from '../../utils/balanceEngine';
 
 function formatDate(str) {
   if (!str) return '—';
@@ -94,14 +95,10 @@ export default function CustomerPortalPage() {
   if (loading) return <PageSpinner />;
 
   const activeSubs = subscriptions.filter((s) => s.status === 'ACTIVE');
+  const customerFinancial = calculateFinancialRecords(invoices, payments);
+  const totalBalanceDue = customerFinancial.totalBalance;
+  const overdueBalance = customerFinancial.overdueBalance;
   const outstandingInvoices = invoices.filter((i) => (i.balance_due || 0) > 0 && i.status !== 'CANCELLED');
-  const totalBalanceDue = outstandingInvoices.reduce(
-    (sum, i) => sum + Number(i.balance_due ?? (i.total || 0) - (i.amount_paid || 0)),
-    0
-  );
-  const overdueBalance = invoices
-    .filter((i) => i.status === 'OVERDUE' && (i.balance_due || 0) > 0)
-    .reduce((sum, i) => sum + Number(i.balance_due || 0), 0);
 
   return (
     <div className="space-y-6">
