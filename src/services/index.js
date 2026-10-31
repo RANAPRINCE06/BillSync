@@ -86,7 +86,7 @@ export const productService = {
 // ----------------------------------------------------------------------------
 export const planService = {
   getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getPlans()) : api.get('/plans', { params }),
+    USE_MOCK ? mockWrap(mockService.getPlans(params)) : api.get('/plans', { params }),
   getById: (id) =>
     USE_MOCK ? mockWrap(mockService.getPlanById(id)) : api.get(`/plans/${id}`),
   create: (data) =>
@@ -102,11 +102,17 @@ export const planService = {
 // ----------------------------------------------------------------------------
 export const quotationService = {
   getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getQuotations()) : api.get('/quotations', { params }),
+    USE_MOCK ? mockWrap(mockService.getQuotations(params)) : api.get('/quotations', { params }),
   getById: (id) =>
     USE_MOCK ? mockWrap(mockService.getQuotationById(id)) : api.get(`/quotations/${id}`),
+  getTemplates: () =>
+    USE_MOCK ? mockWrap(mockService.getQuotationTemplates()) : api.get('/quotations/templates'),
   create: (data) =>
     USE_MOCK ? mockWrap(mockService.createQuotation(data)) : api.post('/quotations', data),
+  update: (id, data) =>
+    USE_MOCK ? mockWrap(mockService.updateQuotation(id, data)) : api.put(`/quotations/${id}`, data),
+  delete: (id) =>
+    USE_MOCK ? mockWrap(mockService.deleteQuotation(id)) : api.delete(`/quotations/${id}`),
   confirm: (id) =>
     USE_MOCK ? mockWrap(mockService.updateQuotationStatus(id, 'ACCEPTED')) : api.post(`/quotations/${id}/confirm`),
   cancel: (id) =>

@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { planService, productService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { ShieldCheck } from 'lucide-react';
 
 const INITIAL = {
   name: '',
@@ -15,9 +16,10 @@ const INITIAL = {
   available_from: '',
   available_until: '',
   description: '',
+  auto_close_at_end_date: true,
+  allow_early_close: true,
   allow_pause: true,
   allow_renewal: true,
-  allow_early_close: true,
 };
 
 export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
@@ -45,9 +47,10 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
         available_from: plan.available_from?.split('T')[0] || plan.start_date?.split('T')[0] || '',
         available_until: plan.available_until?.split('T')[0] || plan.available_to?.split('T')[0] || plan.end_date?.split('T')[0] || '',
         description: plan.description || '',
+        auto_close_at_end_date: plan.auto_close_at_end_date ?? plan.auto_close ?? true,
+        allow_early_close: plan.allow_early_close ?? true,
         allow_pause: plan.allow_pause ?? true,
         allow_renewal: plan.allow_renewal ?? true,
-        allow_early_close: plan.allow_early_close ?? true,
       });
     } else {
       setForm(INITIAL);
@@ -93,9 +96,10 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
         available_until: form.available_until ? `${form.available_until}T23:59:59Z` : null,
         available_to: form.available_until ? `${form.available_until}T23:59:59Z` : null,
         description: form.description.trim() || null,
+        auto_close_at_end_date: Boolean(form.auto_close_at_end_date),
+        allow_early_close: Boolean(form.allow_early_close),
         allow_pause: Boolean(form.allow_pause),
         allow_renewal: Boolean(form.allow_renewal),
-        allow_early_close: Boolean(form.allow_early_close),
         is_active: true,
       };
 
@@ -119,20 +123,20 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={plan ? 'Edit Subscription Plan' : 'Create Subscription Plan'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={plan ? 'Edit Subscription Plan' : 'Create Subscription Plan'} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Input
           label="Plan Name"
           value={form.name}
           onChange={set('name')}
           error={errors.name}
-          placeholder="e.g. Pro Monthly Tier"
+          placeholder="e.g. Pro Monthly Tier / Enterprise Dedicated"
           required
         />
 
         {products.length > 0 && (
-          <Select label="Linked Catalog Product" value={form.product_id} onChange={set('product_id')}>
-            <option value="">Default Product / Standalone</option>
+          <Select label="Linked Catalog Offering (Optional)" value={form.product_id} onChange={set('product_id')}>
+            <option value="">Default Catalog Product / Standalone</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} (Sales Price: ₹{p.sales_price ?? p.price ?? 0})
@@ -141,13 +145,14 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
           </Select>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <Select label="Billing Interval" value={form.billing_interval} onChange={set('billing_interval')} required>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Select label="Billing Frequency" value={form.billing_interval} onChange={set('billing_interval')} required>
             <option value="DAILY">Daily</option>
             <option value="WEEKLY">Weekly</option>
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
           </Select>
+
           <Input
             label="Plan Price (₹)"
             type="number"
@@ -159,26 +164,27 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
             placeholder="0.00"
             required
           />
+
+          <Input
+            label="Minimum Quantity"
+            type="number"
+            min="1"
+            value={form.minimum_quantity}
+            onChange={set('minimum_quantity')}
+            error={errors.minimum_quantity}
+            required
+          />
         </div>
 
-        <Input
-          label="Minimum Required Quantity"
-          type="number"
-          min="1"
-          value={form.minimum_quantity}
-          onChange={set('minimum_quantity')}
-          error={errors.minimum_quantity}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Available From"
+            label="Availability Start Date"
             type="date"
             value={form.available_from}
             onChange={set('available_from')}
           />
           <Input
-            label="Available Until"
+            label="Availability End Date"
             type="date"
             value={form.available_until}
             onChange={set('available_until')}
@@ -187,41 +193,72 @@ export function PlanFormModal({ isOpen, onClose, onSaved, plan }) {
         </div>
 
         <Textarea
-          label="Description / Terms"
+          label="Plan Description & Billing Terms"
           value={form.description}
           onChange={set('description')}
-          placeholder="Plan description and billing details"
+          placeholder="Terms of service, SLA guarantees, usage allowances, or renewal conditions..."
           rows={2}
         />
 
-        <div className="flex flex-wrap gap-4 pt-1">
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <input
-              type="checkbox"
-              checked={form.allow_pause}
-              onChange={(e) => setForm({ ...form, allow_pause: e.target.checked })}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            Allow Pause
-          </label>
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <input
-              type="checkbox"
-              checked={form.allow_renewal}
-              onChange={(e) => setForm({ ...form, allow_renewal: e.target.checked })}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            Allow Renewal
-          </label>
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <input
-              type="checkbox"
-              checked={form.allow_early_close}
-              onChange={(e) => setForm({ ...form, allow_early_close: e.target.checked })}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            Allow Early Close
-          </label>
+        {/* Plan Settings (Configurable Options) */}
+        <div className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/80 space-y-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 uppercase tracking-wide">
+            <ShieldCheck className="w-4 h-4 text-blue-600" /> Plan Rules & Settings
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.auto_close_at_end_date}
+                onChange={(e) => setForm({ ...form, auto_close_at_end_date: e.target.checked })}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+              />
+              <div>
+                <span className="text-xs font-semibold text-slate-800 block">Auto-close at end date</span>
+                <span className="text-[11px] text-slate-500">Automatically terminates subscription on validity expiration</span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.allow_early_close}
+                onChange={(e) => setForm({ ...form, allow_early_close: e.target.checked })}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+              />
+              <div>
+                <span className="text-xs font-semibold text-slate-800 block">Allow early closing</span>
+                <span className="text-[11px] text-slate-500">Permits customer or admin to cancel before end date</span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.allow_pause}
+                onChange={(e) => setForm({ ...form, allow_pause: e.target.checked })}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+              />
+              <div>
+                <span className="text-xs font-semibold text-slate-800 block">Allow pause</span>
+                <span className="text-[11px] text-slate-500">Enables temporary suspension of billing cycle</span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:border-blue-400 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.allow_renewal}
+                onChange={(e) => setForm({ ...form, allow_renewal: e.target.checked })}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
+              />
+              <div>
+                <span className="text-xs font-semibold text-slate-800 block">Allow renewal</span>
+                <span className="text-[11px] text-slate-500">Allows subscription renewal for consecutive billing periods</span>
+              </div>
+            </label>
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">

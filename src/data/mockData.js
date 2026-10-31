@@ -149,6 +149,7 @@ export const INITIAL_MOCK_DATA = {
       minimum_quantity: 1,
       available_from: '2026-01-01T00:00:00Z',
       available_until: '2027-12-31T23:59:59Z',
+      auto_close_at_end_date: true,
       allow_pause: true,
       allow_renewal: true,
       allow_early_close: true,
@@ -163,6 +164,7 @@ export const INITIAL_MOCK_DATA = {
       minimum_quantity: 1,
       available_from: '2026-01-01T00:00:00Z',
       available_until: '2027-12-31T23:59:59Z',
+      auto_close_at_end_date: false,
       allow_pause: true,
       allow_renewal: true,
       allow_early_close: false,
@@ -177,6 +179,7 @@ export const INITIAL_MOCK_DATA = {
       minimum_quantity: 2,
       available_from: '2026-03-01T00:00:00Z',
       available_until: '2028-12-31T23:59:59Z',
+      auto_close_at_end_date: true,
       allow_pause: false,
       allow_renewal: true,
       allow_early_close: true,
@@ -191,6 +194,7 @@ export const INITIAL_MOCK_DATA = {
       minimum_quantity: 1,
       available_from: '2026-01-01T00:00:00Z',
       available_until: '2027-12-31T23:59:59Z',
+      auto_close_at_end_date: false,
       allow_pause: true,
       allow_renewal: true,
       allow_early_close: true,
@@ -256,6 +260,48 @@ export const INITIAL_MOCK_DATA = {
         { product_id: 'prod-001', product_name: 'Dedicated Enterprise Cloud', quantity: 2, unit_price: 12999, tax_rate: 18, line_total: 25998 },
       ],
       created_at: '2026-10-26T16:00:00Z',
+    },
+  ],
+
+  quotation_templates: [
+    {
+      id: 'tmpl-001',
+      name: 'Standard SaaS Growth Pack',
+      description: '1x Platform License (Pro Tier) + 1x 24/7 Dedicated Support SLA',
+      validity_days: 14,
+      discount_amount: 500,
+      tax_rate: 18,
+      notes: 'Standard 14-day validity. Includes dedicated customer success manager and initial setup assistance.',
+      items: [
+        { item_type: 'PRODUCT', product_id: 'prod-002', name: 'SaaS Platform License (Pro Tier)', quantity: 1, unit_price: 1560, tax_rate: 18 },
+        { item_type: 'PRODUCT', product_id: 'prod-003', name: '24/7 Dedicated Support SLA', quantity: 1, unit_price: 1500, tax_rate: 18 },
+      ],
+    },
+    {
+      id: 'tmpl-002',
+      name: 'Enterprise Cloud Infrastructure Bundle',
+      description: '2x Cloud Virtual Server + 1x Secure Edge Gateway + Critical Care SLA',
+      validity_days: 30,
+      discount_amount: 2500,
+      tax_rate: 18,
+      notes: 'Enterprise 30-day validity. Volume provisioning bundle including redundant hardware telemetry.',
+      items: [
+        { item_type: 'PRODUCT', product_id: 'prod-001', name: 'Cloud Virtual Server (4 vCPU / 8GB)', quantity: 2, unit_price: 6999, tax_rate: 18 },
+        { item_type: 'PRODUCT', product_id: 'prod-004', name: 'Secure Edge Gateway Router', quantity: 1, unit_price: 14500, tax_rate: 18 },
+        { item_type: 'PLAN', plan_id: 'plan-003', name: 'Dedicated Enterprise Cloud (Monthly)', quantity: 1, unit_price: 12999, tax_rate: 18 },
+      ],
+    },
+    {
+      id: 'tmpl-003',
+      name: 'Hardware Telemetry Starter Kit',
+      description: '1x Secure Edge Gateway Router with standard hardware warranty',
+      validity_days: 15,
+      discount_amount: 0,
+      tax_rate: 18,
+      notes: 'Standard edge gateway deployment package with 1-year manufacturer warranty.',
+      items: [
+        { item_type: 'PRODUCT', product_id: 'prod-004', name: 'Secure Edge Gateway Router', quantity: 1, unit_price: 14500, tax_rate: 18 },
+      ],
     },
   ],
 
@@ -455,7 +501,7 @@ export const INITIAL_MOCK_DATA = {
   ],
 };
 
-const STORAGE_KEY = 'billsync_mock_store_v2';
+const STORAGE_KEY = 'billsync_mock_store_v3';
 
 // Load store from localStorage or initialize with seed
 export function getMockStore() {
@@ -465,7 +511,11 @@ export function getMockStore() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_MOCK_DATA));
       return INITIAL_MOCK_DATA;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.quotation_templates) {
+      parsed.quotation_templates = INITIAL_MOCK_DATA.quotation_templates;
+    }
+    return parsed;
   } catch {
     return INITIAL_MOCK_DATA;
   }

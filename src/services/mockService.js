@@ -205,10 +205,24 @@ export const mockService = {
   // --------------------------------------------------------------------------
   // Subscription Plans
   // --------------------------------------------------------------------------
-  async getPlans() {
+  async getPlans(params = {}) {
     await delay();
     const store = getMockStore();
-    return [...store.plans];
+    let list = [...store.plans];
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q))
+      );
+    }
+    if (params.interval && params.interval !== 'ALL') {
+      list = list.filter(
+        (p) => (p.billing_interval || p.billing_cycle || '').toUpperCase() === params.interval.toUpperCase()
+      );
+    }
+    return list;
   },
 
   async getPlanById(id) {
@@ -224,6 +238,10 @@ export const mockService = {
     const store = getMockStore();
     const newPlan = {
       id: uid('plan'),
+      auto_close_at_end_date: data.auto_close_at_end_date ?? true,
+      allow_pause: data.allow_pause ?? true,
+      allow_renewal: data.allow_renewal ?? true,
+      allow_early_close: data.allow_early_close ?? true,
       ...data,
       created_at: new Date().toISOString(),
     };
@@ -253,10 +271,24 @@ export const mockService = {
   // --------------------------------------------------------------------------
   // Quotations
   // --------------------------------------------------------------------------
-  async getQuotations() {
+  async getQuotations(params = {}) {
     await delay();
     const store = getMockStore();
-    return [...store.quotations];
+    let list = [...store.quotations];
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (item) =>
+          (item.quotation_number && item.quotation_number.toLowerCase().includes(q)) ||
+          (item.customer_name && item.customer_name.toLowerCase().includes(q)) ||
+          (item.company && item.company.toLowerCase().includes(q)) ||
+          (item.notes && item.notes.toLowerCase().includes(q))
+      );
+    }
+    if (params.status && params.status !== 'ALL') {
+      list = list.filter((item) => (item.status || '').toUpperCase() === params.status.toUpperCase());
+    }
+    return list;
   },
 
   async getQuotationById(id) {
@@ -267,17 +299,24 @@ export const mockService = {
     return q;
   },
 
+  async getQuotationTemplates() {
+    await delay();
+    const store = getMockStore();
+    return store.quotation_templates || [];
+  },
+
   async createQuotation(data) {
     await delay();
     const store = getMockStore();
     const customer = store.customers.find((c) => String(c.id) === String(data.customer_id));
     const newQt = {
       id: uid('qt'),
-      quotation_number: `QT-2026-${String(store.quotations.length + 1).padStart(3, '0')}`,
+      quotation_number: data.quotation_number || `QT-2026-${String(store.quotations.length + 1).padStart(3, '0')}`,
       customer_id: data.customer_id,
       customer_name: customer ? customer.name : 'Client',
       customer_email: customer ? customer.email : '',
-      status: 'DRAFT',
+      company: customer ? customer.company : '',
+      status: data.status || 'DRAFT',
       valid_until: data.valid_until || new Date(Date.now() + 14 * 86400000).toISOString(),
       subtotal: data.subtotal,
       discount_amount: data.discount_amount || 0,
@@ -290,6 +329,45 @@ export const mockService = {
     store.quotations.unshift(newQt);
     saveMockStore(store);
     return newQt;
+  },
+
+  async updateQuotation(id, data) {
+    await delay();
+    const store = getMockStore();
+    const index = store.quotations.findIndex((q) => String(q.id) === String(id));
+    if (index === -1) throw new Error('Quotation not found');
+    const existing = store.quotations[index];
+
+    let customerName = existing.customer_name;
+    let customerEmail = existing.customer_email;
+    let customerCompany = existing.company;
+    if (data.customer_id && data.customer_id !== existing.customer_id) {
+      const cust = store.customers.find((c) => String(c.id) === String(data.customer_id));
+      if (cust) {
+        customerName = cust.name;
+        customerEmail = cust.email;
+        customerCompany = cust.company;
+      }
+    }
+
+    store.quotations[index] = {
+      ...existing,
+      ...data,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      company: customerCompany,
+      updated_at: new Date().toISOString(),
+    };
+    saveMockStore(store);
+    return store.quotations[index];
+  },
+
+  async deleteQuotation(id) {
+    await delay();
+    const store = getMockStore();
+    store.quotations = store.quotations.filter((q) => String(q.id) !== String(id));
+    saveMockStore(store);
+    return { success: true };
   },
 
   async updateQuotationStatus(id, newStatus) {

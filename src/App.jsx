@@ -113,6 +113,11 @@ export default function App() {
                   <QuotationDetailPage />
                 </ProtectedRoute>
               } />
+              <Route path="/quotations/:id/edit" element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
+                  <QuotationFormPage />
+                </ProtectedRoute>
+              } />
 
               {/* Subscriptions Module */}
               <Route path="/subscriptions" element={

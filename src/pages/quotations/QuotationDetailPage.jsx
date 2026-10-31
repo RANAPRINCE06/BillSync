@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Repeat, XCircle } from 'lucide-react';
+import {
+  ArrowLeft, CheckCircle, Repeat, XCircle, Send,
+  Pencil, Trash2, Calendar, Building, Mail, FileText, CheckCircle2
+} from 'lucide-react';
 import { quotationService } from '../../services';
 import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
-import { Table, TableHead, Th, TableBody, Td, TableEmpty } from '../../components/ui/Table';
+import { Table, TableHead, Th, TableBody, Td } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/Badge';
 import { ConfirmModal } from '../../components/ui/Modal';
 import { PageSpinner } from '../../components/ui/Feedback';
-
-function formatCurrency(val) {
-  if (val === undefined || val === null) return '—';
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
-}
+import { formatCurrency } from '../../utils/quotationCalculations';
 
 function formatDate(str) {
   if (!str) return '—';
@@ -29,7 +28,7 @@ export default function QuotationDetailPage() {
   const [quotation, setQuotation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
-  const [confirmModal, setConfirmModal] = useState({ open: false, action: '', label: '' });
+  const [confirmModal, setConfirmModal] = useState({ open: false, action: '', label: '', message: '' });
 
   const fetchQuotation = async () => {
     setLoading(true);
@@ -50,16 +49,24 @@ export default function QuotationDetailPage() {
   const handleAction = async (action) => {
     setActionLoading(action);
     try {
-      if (action === 'confirm' || action === 'accept') {
+      if (action === 'send') {
+        await quotationService.update(id, { status: 'SENT' });
+        addToast('Quotation marked as sent to customer', 'success');
+      } else if (action === 'confirm' || action === 'accept') {
         await (quotationService.confirm ? quotationService.confirm(id) : quotationService.update(id, { status: 'ACCEPTED' }));
-        addToast('Quotation accepted', 'success');
+        addToast('Quotation successfully accepted by customer', 'success');
       } else if (action === 'cancel' || action === 'reject') {
         await (quotationService.cancel ? quotationService.cancel(id) : quotationService.update(id, { status: 'REJECTED' }));
-        addToast('Quotation cancelled', 'info');
+        addToast('Quotation marked as rejected / cancelled', 'info');
       } else if (action === 'convert') {
         await quotationService.convertToSubscription(id);
-        addToast('Quotation successfully converted to active subscription!', 'success');
+        addToast('Quotation converted into active recurring subscription & initial invoice generated!', 'success');
         navigate('/subscriptions');
+        return;
+      } else if (action === 'delete') {
+        await quotationService.delete(id);
+        addToast('Quotation deleted successfully', 'info');
+        navigate('/quotations');
         return;
       }
       fetchQuotation();
@@ -68,7 +75,7 @@ export default function QuotationDetailPage() {
       addToast(msg, 'error');
     } finally {
       setActionLoading('');
-      setConfirmModal({ open: false, action: '', label: '' });
+      setConfirmModal({ open: false, action: '', label: '', message: '' });
     }
   };
 
@@ -77,141 +84,259 @@ export default function QuotationDetailPage() {
 
   const status = (quotation.status || '').toUpperCase();
   const lines = quotation.items || quotation.lines || [];
+  const canEdit = status === 'DRAFT' || status === 'SENT';
+  const canDelete = status === 'DRAFT';
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/quotations')} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-          <ArrowLeft className="w-4 h-4 text-slate-600" />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold text-slate-900">
-            Quotation {quotation.quotation_number || quotation.reference || `#${id}`}
-          </h1>
-          <p className="text-sm text-slate-500">
-            Created on {formatDate(quotation.created_at || quotation.date)} • Valid until {formatDate(quotation.valid_until)}
-          </p>
+    <div className="space-y-6">
+      {/* Top Header & Actions Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/quotations')}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-600" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">
+                Quotation {quotation.quotation_number || `QT-${quotation.id}`}
+              </h1>
+              <StatusBadge status={quotation.status} />
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Issued: {formatDate(quotation.created_at || quotation.date)} • Valid Until: {formatDate(quotation.valid_until)}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={quotation.status} />
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(`/quotations/${id}/edit`)}
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit Quotation
+            </Button>
+          )}
 
           {status === 'DRAFT' && (
             <>
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setConfirmModal({ open: true, action: 'cancel', label: 'Reject Quotation' })}
-                loading={actionLoading === 'cancel'}
+                onClick={() =>
+                  setConfirmModal({
+                    open: true,
+                    action: 'send',
+                    label: 'Mark as Sent',
+                    message: 'Mark this quotation as delivered to the customer for review?',
+                  })
+                }
+                loading={actionLoading === 'send'}
               >
-                <XCircle className="w-4 h-4" /> Reject
+                <Send className="w-3.5 h-3.5" /> Mark as Sent
               </Button>
               <Button
+                variant="secondary"
                 size="sm"
-                onClick={() => setConfirmModal({ open: true, action: 'accept', label: 'Accept Quotation' })}
-                loading={actionLoading === 'accept'}
+                onClick={() =>
+                  setConfirmModal({
+                    open: true,
+                    action: 'delete',
+                    label: 'Delete Quotation',
+                    message: `Are you sure you want to permanently delete quotation ${quotation.quotation_number || quotation.id}?`,
+                  })
+                }
+                className="text-red-600 hover:bg-red-50"
               >
-                <CheckCircle className="w-4 h-4" /> Accept
+                <Trash2 className="w-3.5 h-3.5" /> Delete Draft
               </Button>
             </>
           )}
 
-          {(status === 'ACCEPTED' || status === 'CONFIRMED' || status === 'SENT') && (
+          {(status === 'DRAFT' || status === 'SENT') && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  setConfirmModal({
+                    open: true,
+                    action: 'cancel',
+                    label: 'Reject Quotation',
+                    message: 'Mark this quotation proposal as rejected?',
+                  })
+                }
+                loading={actionLoading === 'cancel'}
+              >
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </Button>
+              <Button
+                size="sm"
+                onClick={() =>
+                  setConfirmModal({
+                    open: true,
+                    action: 'accept',
+                    label: 'Accept Quotation',
+                    message: 'Confirm acceptance of this quotation and approve the proposed pricing?',
+                  })
+                }
+                loading={actionLoading === 'accept'}
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Accept Quotation
+              </Button>
+            </>
+          )}
+
+          {(status === 'ACCEPTED' || status === 'CONFIRMED') && (
             <Button
               variant="success"
               size="sm"
-              onClick={() => setConfirmModal({ open: true, action: 'convert', label: 'Convert to Subscription' })}
+              onClick={() =>
+                setConfirmModal({
+                  open: true,
+                  action: 'convert',
+                  label: 'Convert to Subscription',
+                  message: 'Convert this accepted quotation into an active recurring subscription and generate the opening invoice?',
+                })
+              }
               loading={actionLoading === 'convert'}
             >
-              <Repeat className="w-4 h-4" /> Convert to Subscription
+              <Repeat className="w-3.5 h-3.5" /> Convert to Subscription
             </Button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      {/* Main Content Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recipient & Terms Details */}
         <Card>
           <CardHeader>
-            <CardTitle>Customer & Terms</CardTitle>
+            <CardTitle>Customer & Quotation Parameters</CardTitle>
           </CardHeader>
-          <CardBody className="space-y-3">
-            {[
-              ['Customer', quotation.customer_name || quotation.customer?.name || '—'],
-              ['Contact Email', quotation.customer_email || quotation.customer?.email || '—'],
-              ['Status', <StatusBadge key="s" status={quotation.status} />],
-              ['Valid Until', formatDate(quotation.valid_until)],
-              ['Notes', quotation.notes || '—'],
-            ].map(([label, val]) => (
-              <div key={label}>
-                <p className="text-xs text-slate-400 font-medium">{label}</p>
-                <div className="text-sm text-slate-700 mt-0.5">{val}</div>
+          <CardBody className="space-y-4">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Customer</span>
+              <div className="text-sm font-semibold text-slate-900 mt-0.5">
+                {quotation.customer_name || quotation.customer?.name || '—'}
               </div>
-            ))}
+              {quotation.company && (
+                <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                  <Building className="w-3 h-3 text-slate-400" /> {quotation.company}
+                </div>
+              )}
+              {quotation.customer_email && (
+                <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                  <Mail className="w-3 h-3 text-slate-400" /> {quotation.customer_email}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 block">Quotation Date</span>
+                <span className="font-medium text-slate-800">{formatDate(quotation.created_at || quotation.date)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Valid Until</span>
+                <span className="font-medium text-slate-800">{formatDate(quotation.valid_until)}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Quotation Status</span>
+              <div className="mt-1">
+                <StatusBadge status={quotation.status} />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Proposal Terms & Notes</span>
+              <p className="text-xs text-slate-700 mt-1 whitespace-pre-line leading-relaxed">
+                {quotation.notes || <span className="text-slate-400 italic">No notes provided for this quotation.</span>}
+              </p>
+            </div>
           </CardBody>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Quotation Items</CardTitle>
-          </CardHeader>
-          <Table>
-            <TableHead>
-              <Th>Item Description</Th>
-              <Th>Quantity</Th>
-              <Th>Unit Price</Th>
-              <Th>Tax Rate</Th>
-              <Th className="text-right">Line Total</Th>
-            </TableHead>
-            {lines.length === 0 ? (
-              <TableEmpty message="No line items listed on this quotation" cols={5} />
-            ) : (
+        {/* Line Items Table & Financial Breakdown */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quotation Line Items</CardTitle>
+            </CardHeader>
+            <Table>
+              <TableHead>
+                <Th>Line Offering</Th>
+                <Th className="text-center">Qty</Th>
+                <Th className="text-right">Unit Price</Th>
+                <Th className="text-center">Tax (%)</Th>
+                <Th className="text-right">Line Total</Th>
+              </TableHead>
               <TableBody>
-                {lines.map((l, i) => (
-                  <tr key={i}>
-                    <Td className="font-medium text-slate-900">{l.product_name || l.product?.name || l.name || 'Product Item'}</Td>
-                    <Td>{l.quantity}</Td>
-                    <Td>{formatCurrency(l.unit_price)}</Td>
-                    <Td>{l.tax_rate ?? 0}%</Td>
+                {lines.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <Td className="font-medium text-slate-900">
+                      {item.product_name || item.name || 'Catalog Item'}
+                      {item.plan_id && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-700">
+                          Subscription Plan
+                        </span>
+                      )}
+                    </Td>
+                    <Td className="text-center">{item.quantity}</Td>
+                    <Td className="text-right">{formatCurrency(item.unit_price)}</Td>
+                    <Td className="text-center">{item.tax_rate ?? 18}%</Td>
                     <Td className="text-right font-semibold text-slate-900">
-                      {formatCurrency(l.line_total ?? l.quantity * l.unit_price)}
+                      {formatCurrency(item.line_total || item.quantity * item.unit_price)}
                     </Td>
                   </tr>
                 ))}
               </TableBody>
-            )}
-          </Table>
+            </Table>
 
-          <div className="px-6 py-4 border-t border-slate-100 space-y-1.5 bg-slate-50/50">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="text-slate-800">{formatCurrency(quotation.subtotal)}</span>
-            </div>
-            {quotation.discount_amount > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600">
-                <span>Discount</span>
-                <span>-{formatCurrency(quotation.discount_amount)}</span>
+            {/* Calculations Breakdown */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/60 flex justify-end">
+              <div className="w-full max-w-xs space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Gross Subtotal:</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(quotation.subtotal)}</span>
+                </div>
+                {Number(quotation.discount_amount) > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span>Discount Applied:</span>
+                    <span>-{formatCurrency(quotation.discount_amount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Taxes (GST):</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(quotation.tax_amount)}</span>
+                </div>
+                <div className="border-t border-slate-200 pt-2 flex justify-between text-sm font-bold text-slate-900">
+                  <span>Grand Total:</span>
+                  <span className="text-emerald-700">{formatCurrency(quotation.total)}</span>
+                </div>
               </div>
-            )}
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Tax</span>
-              <span className="text-slate-800">+{formatCurrency(quotation.tax_amount ?? quotation.tax)}</span>
             </div>
-            <div className="flex justify-between text-base font-bold pt-2 border-t border-slate-200">
-              <span className="text-slate-900">Total</span>
-              <span className="text-blue-700">{formatCurrency(quotation.total)}</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
+      {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={confirmModal.open}
-        onClose={() => setConfirmModal({ open: false, action: '', label: '' })}
+        onClose={() => setConfirmModal({ open: false, action: '', label: '', message: '' })}
         onConfirm={() => handleAction(confirmModal.action)}
         title={confirmModal.label}
-        message={`Are you sure you want to execute '${confirmModal.label}' on this quotation?`}
+        message={confirmModal.message}
         confirmLabel={confirmModal.label}
-        variant={confirmModal.action === 'cancel' ? 'danger' : 'success'}
-        loading={!!actionLoading}
+        variant={confirmModal.action === 'delete' || confirmModal.action === 'cancel' ? 'danger' : 'primary'}
+        loading={Boolean(actionLoading)}
       />
     </div>
   );
