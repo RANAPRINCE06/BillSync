@@ -41,6 +41,21 @@ class UserAdminCreateRequest(UserRegisterRequest):
     role: UserRole = Field(default=UserRole.CUSTOMER, description="Assigned role")
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_optional(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_password_strength(v)
+        return v
+
+
 class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -49,3 +64,12 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserListResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[UserResponse]
+    total: int
+    page: int
+    size: int
