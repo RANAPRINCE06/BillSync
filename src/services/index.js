@@ -126,13 +126,19 @@ export const quotationService = {
 // ----------------------------------------------------------------------------
 export const subscriptionService = {
   getAll: (params) =>
-    USE_MOCK ? mockWrap(mockService.getSubscriptions()) : api.get('/subscriptions', { params }),
+    USE_MOCK ? mockWrap(mockService.getSubscriptions(params)) : api.get('/subscriptions', { params }),
   getById: (id) =>
     USE_MOCK ? mockWrap(mockService.getSubscriptionById(id)) : api.get(`/subscriptions/${id}`),
   create: (data) =>
     USE_MOCK ? mockWrap(mockService.createSubscription(data)) : api.post('/subscriptions', data),
+  confirm: (id) =>
+    USE_MOCK ? mockWrap(mockService.confirmSubscription(id)) : api.post(`/subscriptions/${id}/confirm`),
+  activate: (id) =>
+    USE_MOCK ? mockWrap(mockService.activateSubscription(id)) : api.post(`/subscriptions/${id}/activate`),
   pause: (id) =>
     USE_MOCK ? mockWrap(mockService.pauseSubscription(id)) : api.post(`/subscriptions/${id}/pause`),
+  resume: (id) =>
+    USE_MOCK ? mockWrap(mockService.resumeSubscription(id)) : api.post(`/subscriptions/${id}/resume`),
   renew: (id) =>
     USE_MOCK ? mockWrap(mockService.renewSubscription(id)) : api.post(`/subscriptions/${id}/renew`),
   close: (id) =>

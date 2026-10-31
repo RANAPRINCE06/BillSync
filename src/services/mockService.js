@@ -450,10 +450,31 @@ export const mockService = {
   // --------------------------------------------------------------------------
   // Subscriptions
   // --------------------------------------------------------------------------
-  async getSubscriptions() {
+  async getSubscriptions(params = {}) {
     await delay();
     const store = getMockStore();
-    return [...store.subscriptions];
+    let list = [...store.subscriptions];
+
+    if (params.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter(
+        (s) =>
+          (s.subscription_number && s.subscription_number.toLowerCase().includes(q)) ||
+          (s.customer_name && s.customer_name.toLowerCase().includes(q)) ||
+          (s.company && s.company.toLowerCase().includes(q)) ||
+          (s.plan_name && s.plan_name.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.status && params.status !== 'ALL') {
+      list = list.filter((s) => (s.status || '').toUpperCase() === params.status.toUpperCase());
+    }
+
+    if (params.interval && params.interval !== 'ALL') {
+      list = list.filter((s) => (s.billing_interval || s.billing_cycle || '').toUpperCase() === params.interval.toUpperCase());
+    }
+
+    return list;
   },
 
   async getSubscriptionById(id) {
@@ -461,7 +482,42 @@ export const mockService = {
     const store = getMockStore();
     const sub = store.subscriptions.find((s) => String(s.id) === String(id));
     if (!sub) throw new Error('Subscription not found');
-    return sub;
+
+    // Attach linked customer and plan details if not present
+    const customer = store.customers.find((c) => String(c.id) === String(sub.customer_id));
+    const plan = store.plans.find((p) => String(p.id) === String(sub.plan_id));
+
+    // Ensure line items have tax and totals computed
+    const items = (sub.items || []).map((it) => {
+      const qty = Number(it.quantity) || 1;
+      const price = Number(it.unit_price) || 0;
+      const taxRate = it.tax_rate ?? 18;
+      const lineTotal = it.line_total || qty * price;
+      return {
+        ...it,
+        quantity: qty,
+        unit_price: price,
+        tax_rate: taxRate,
+        line_total: lineTotal,
+      };
+    });
+
+    const subtotal = sub.subtotal || items.reduce((sum, it) => sum + (it.line_total || 0), 0);
+    const tax_amount = sub.tax_amount || items.reduce((sum, it) => sum + ((it.line_total || 0) * (it.tax_rate || 0)) / 100, 0);
+    const total_amount = sub.total_amount || (subtotal + tax_amount);
+
+    return {
+      ...sub,
+      customer,
+      plan,
+      items,
+      subtotal,
+      tax_amount,
+      total_amount,
+      history: sub.history || [
+        { event: 'Created', timestamp: sub.created_at || new Date().toISOString(), notes: 'Subscription agreement created' }
+      ],
+    };
   },
 
   async createSubscription(data) {
@@ -470,25 +526,88 @@ export const mockService = {
     const customer = store.customers.find((c) => String(c.id) === String(data.customer_id));
     const plan = store.plans.find((p) => String(p.id) === String(data.plan_id));
 
+    const items = (data.items || []).map((it) => {
+      const qty = Number(it.quantity) || 1;
+      const price = Number(it.unit_price) || 0;
+      const taxRate = it.tax_rate ?? 18;
+      return {
+        ...it,
+        quantity: qty,
+        unit_price: price,
+        tax_rate: taxRate,
+        line_total: qty * price,
+      };
+    });
+
+    const subtotal = items.reduce((sum, it) => sum + it.line_total, 0);
+    const tax_amount = items.reduce((sum, it) => sum + (it.line_total * (it.tax_rate || 0)) / 100, 0);
+    const total_amount = subtotal + tax_amount;
+
+    const initialStatus = (data.status || 'DRAFT').toUpperCase();
     const newSub = {
       id: uid('sub'),
       subscription_number: `SUB-2026-${String(store.subscriptions.length + 1).padStart(3, '0')}`,
       customer_id: data.customer_id,
       customer_name: customer ? customer.name : 'Client',
+      company: customer ? customer.company : '',
+      customer_email: customer ? customer.email : '',
       plan_id: data.plan_id,
       plan_name: plan ? plan.name : 'Custom Plan',
-      billing_interval: plan ? plan.billing_interval : 'MONTHLY',
-      status: 'ACTIVE',
+      billing_interval: plan ? (plan.billing_interval || 'MONTHLY') : 'MONTHLY',
+      status: initialStatus,
       start_date: data.start_date || new Date().toISOString(),
       end_date: data.end_date || null,
-      next_billing_date: new Date(Date.now() + 30 * 86400000).toISOString(),
+      next_billing_date: data.start_date || new Date().toISOString(),
       payment_terms: data.payment_terms || 'Due upon receipt',
-      items: data.items || [],
+      subtotal,
+      tax_amount,
+      total_amount,
+      items,
+      notes: data.notes || '',
+      history: [
+        {
+          event: initialStatus === 'ACTIVE' ? 'Activated' : 'Created',
+          timestamp: new Date().toISOString(),
+          notes: initialStatus === 'ACTIVE' ? 'Directly created in active status' : 'Initial draft subscription created',
+        },
+      ],
       created_at: new Date().toISOString(),
     };
     store.subscriptions.unshift(newSub);
     saveMockStore(store);
     return newSub;
+  },
+
+  async confirmSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'CONFIRMED';
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Confirmed',
+      timestamp: new Date().toISOString(),
+      notes: 'Customer agreement terms confirmed',
+    });
+    saveMockStore(store);
+    return sub;
+  },
+
+  async activateSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'ACTIVE';
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Activated',
+      timestamp: new Date().toISOString(),
+      notes: 'Subscription activated and recurring provisioning initiated',
+    });
+    saveMockStore(store);
+    return sub;
   },
 
   async pauseSubscription(id) {
@@ -497,6 +616,28 @@ export const mockService = {
     const sub = store.subscriptions.find((s) => String(s.id) === String(id));
     if (!sub) throw new Error('Subscription not found');
     sub.status = 'PAUSED';
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Paused',
+      timestamp: new Date().toISOString(),
+      notes: 'Recurring billing temporarily suspended',
+    });
+    saveMockStore(store);
+    return sub;
+  },
+
+  async resumeSubscription(id) {
+    await delay();
+    const store = getMockStore();
+    const sub = store.subscriptions.find((s) => String(s.id) === String(id));
+    if (!sub) throw new Error('Subscription not found');
+    sub.status = 'ACTIVE';
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Resumed',
+      timestamp: new Date().toISOString(),
+      notes: 'Resumed active recurring subscription',
+    });
     saveMockStore(store);
     return sub;
   },
@@ -508,6 +649,12 @@ export const mockService = {
     if (!sub) throw new Error('Subscription not found');
     sub.status = 'ACTIVE';
     sub.next_billing_date = new Date(Date.now() + 30 * 86400000).toISOString();
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Renewed',
+      timestamp: new Date().toISOString(),
+      notes: 'Subscription term renewed for next cycle',
+    });
     saveMockStore(store);
     return sub;
   },
@@ -518,6 +665,12 @@ export const mockService = {
     const sub = store.subscriptions.find((s) => String(s.id) === String(id));
     if (!sub) throw new Error('Subscription not found');
     sub.status = 'CLOSED';
+    if (!sub.history) sub.history = [];
+    sub.history.push({
+      event: 'Closed',
+      timestamp: new Date().toISOString(),
+      notes: 'Subscription terminated and closed',
+    });
     saveMockStore(store);
     return sub;
   },

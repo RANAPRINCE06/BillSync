@@ -40,3 +40,4 @@ export function formatCurrency(val) {
   if (val === undefined || val === null || isNaN(val)) return '₹0.00';
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
 }
+
