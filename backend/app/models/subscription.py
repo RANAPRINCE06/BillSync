@@ -12,8 +12,7 @@ from app.models.enums import SubscriptionStatus
 
 if TYPE_CHECKING:
     from app.models.customer import Customer
-    from app.models.plan import Plan
-    from app.models.product import Product
+    from app.models.product import Plan, Product
     from app.models.quotation import Quotation
     from app.models.invoice import Invoice
 

@@ -29,8 +29,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     customer: Mapped[Optional["Customer"]] = relationship(
         "Customer",
         back_populates="user",
-        uselist=False,
-        cascade="all, delete-orphan"
+        uselist=False
     )
 
     def __repr__(self) -> str:

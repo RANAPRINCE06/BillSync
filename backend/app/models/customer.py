@@ -34,13 +34,11 @@ class Customer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     user: Mapped[Optional["User"]] = relationship("User", back_populates="customer")
     quotations: Mapped[List["Quotation"]] = relationship(
         "Quotation",
-        back_populates="customer",
-        cascade="all, delete-orphan"
+        back_populates="customer"
     )
     subscriptions: Mapped[List["Subscription"]] = relationship(
         "Subscription",
-        back_populates="customer",
-        cascade="all, delete-orphan"
+        back_populates="customer"
     )
     invoices: Mapped[List["Invoice"]] = relationship(
         "Invoice",
