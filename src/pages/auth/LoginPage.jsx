@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -27,14 +28,21 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     setLoading(true);
     try {
-      const user = await login(form);
-      addToast('Welcome back!', 'success');
-      navigate(user.role === 'customer' ? '/subscriptions' : '/');
+      const user = await login({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+      addToast('Welcome back to BillSync!', 'success');
+      const role = (user?.role || '').toUpperCase();
+      navigate(role === 'CUSTOMER' ? '/subscriptions' : '/');
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Invalid email or password';
+      const msg = getErrorMessage(err, 'Invalid email or password');
       addToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -49,17 +57,17 @@ export default function LoginPage() {
             <Zap className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Sign in to BillSync</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage subscriptions seamlessly</p>
+          <p className="text-sm text-slate-500 mt-1">Subscription Management System</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-8">
+        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <Input
               label="Email address"
               type="email"
               placeholder="you@example.com"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => { setForm({ ...form, email: e.target.value }); setErrors({ ...errors, email: '' }); }}
               error={errors.email}
               required
             />
@@ -72,8 +80,12 @@ export default function LoginPage() {
                   type={showPass ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className={`w-full px-3 py-2 pr-10 text-sm border rounded-lg bg-white outline-none focus:ring-2 ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100'}`}
+                  onChange={(e) => { setForm({ ...form, password: e.target.value }); setErrors({ ...errors, password: '' }); }}
+                  className={`w-full px-3 py-2 pr-10 text-sm border rounded-lg bg-white outline-none focus:ring-2 ${
+                    errors.password
+                      ? 'border-red-400 focus:border-red-400 focus:ring-red-100'
+                      : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100'
+                  }`}
                 />
                 <button
                   type="button"
@@ -108,4 +120,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
