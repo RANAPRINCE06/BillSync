@@ -3,9 +3,10 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Textarea } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { customerService } from '../../services';
+import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
-const INITIAL = { name: '', email: '', phone: '', company: '', address: '', notes: '' };
+const INITIAL = { name: '', email: '', phone: '', billing_address: '' };
 
 export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
   const addToast = useToast();
@@ -19,9 +20,7 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
         name: customer.name || '',
         email: customer.email || '',
         phone: customer.phone || '',
-        company: customer.company || '',
-        address: customer.address || '',
-        notes: customer.notes || '',
+        billing_address: customer.billing_address || customer.address || '',
       });
     } else {
       setForm(INITIAL);
@@ -31,26 +30,36 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    if (!form.email.trim()) e.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Invalid email';
+    if (!form.name.trim()) e.name = 'Full name is required';
+    if (!form.email.trim()) e.email = 'Email address is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Invalid email address';
     return e;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     setLoading(true);
     try {
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        billing_address: form.billing_address.trim() || null,
+      };
+
       if (customer) {
-        await customerService.update(customer.id, form);
+        await customerService.update(customer.id, payload);
       } else {
-        await customerService.create(form);
+        await customerService.create(payload);
       }
       onSaved();
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Failed to save customer';
+      const msg = getErrorMessage(err, 'Failed to save customer');
       addToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -65,22 +74,47 @@ export function CustomerFormModal({ isOpen, onClose, onSaved, customer }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={customer ? 'Edit Customer' : 'Add Customer'}>
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Full Name" value={form.name} onChange={set('name')} error={errors.name} required />
-          <Input label="Email" type="email" value={form.email} onChange={set('email')} error={errors.email} required />
+        <Input
+          label="Full Name / Company Name"
+          value={form.name}
+          onChange={set('name')}
+          error={errors.name}
+          placeholder="e.g. Acme Corp"
+          required
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Email Address"
+            type="email"
+            value={form.email}
+            onChange={set('email')}
+            error={errors.email}
+            placeholder="billing@acme.com"
+            required
+          />
+          <Input
+            label="Phone Number"
+            value={form.phone}
+            onChange={set('phone')}
+            placeholder="+1 555-0199"
+          />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Phone" value={form.phone} onChange={set('phone')} />
-          <Input label="Company" value={form.company} onChange={set('company')} />
-        </div>
-        <Input label="Address" value={form.address} onChange={set('address')} />
-        <Textarea label="Notes" value={form.notes} onChange={set('notes')} />
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
-          <Button type="submit" loading={loading}>{customer ? 'Update' : 'Create'}</Button>
+        <Textarea
+          label="Billing Address"
+          value={form.billing_address}
+          onChange={set('billing_address')}
+          placeholder="Street address, city, state, postal code"
+          rows={3}
+        />
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={loading}>
+            {customer ? 'Update Customer' : 'Create Customer'}
+          </Button>
         </div>
       </form>
     </Modal>
   );
 }
-

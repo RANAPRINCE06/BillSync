@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Eye } from 'lucide-react';
 import { quotationService } from '../../services';
+import { getErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { PageHeader } from '../../components/ui/Common';
 import { Card } from '../../components/ui/Card';
@@ -13,6 +14,7 @@ function formatDate(str) {
   if (!str) return '—';
   return new Date(str).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
 function formatCurrency(val) {
   if (val === undefined || val === null) return '—';
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
@@ -28,21 +30,24 @@ export default function QuotationsPage() {
     setLoading(true);
     try {
       const res = await quotationService.getAll();
-      setQuotations(res.data || []);
-    } catch {
-      addToast('Failed to load quotations', 'error');
+      const list = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setQuotations(list);
+    } catch (err) {
+      addToast(getErrorMessage(err, 'Failed to load quotations'), 'error');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchQuotations(); }, [fetchQuotations]);
+  useEffect(() => {
+    fetchQuotations();
+  }, [fetchQuotations]);
 
   return (
     <div>
       <PageHeader
         title="Quotations"
-        subtitle={`${quotations.length} quotation(s)`}
+        subtitle={`${quotations.length} estimate quotation(s)`}
         action={
           <Button onClick={() => navigate('/quotations/new')}>
             <Plus className="w-4 h-4" /> New Quotation
@@ -53,11 +58,11 @@ export default function QuotationsPage() {
       <Card>
         <Table>
           <TableHead>
-            <Th>Ref #</Th>
+            <Th>Quotation #</Th>
             <Th>Customer</Th>
-            <Th>Date</Th>
+            <Th>Issue Date</Th>
+            <Th>Valid Until</Th>
             <Th>Subtotal</Th>
-            <Th>Discount</Th>
             <Th>Tax</Th>
             <Th>Total</Th>
             <Th>Status</Th>
@@ -66,22 +71,26 @@ export default function QuotationsPage() {
           {loading ? (
             <TableSkeleton cols={9} rows={5} />
           ) : quotations.length === 0 ? (
-            <TableEmpty message="No quotations found" cols={9} />
+            <TableEmpty message="No quotations created yet. Click 'New Quotation' to begin." cols={9} />
           ) : (
             <TableBody>
               {quotations.map((q) => (
-                <tr key={q.id} className="hover:bg-slate-50">
-                  <Td className="font-mono text-xs">{q.reference || q.number || `QT-${q.id}`}</Td>
-                  <Td>{q.customer_name || q.customer?.name || '—'}</Td>
-                  <Td>{formatDate(q.date || q.created_at)}</Td>
+                <tr key={q.id} className="hover:bg-slate-50 transition-colors">
+                  <Td className="font-mono text-xs font-semibold text-slate-900">
+                    {q.quotation_number || q.reference || `QT-${q.id}`}
+                  </Td>
+                  <Td className="font-medium text-slate-800">{q.customer_name || q.customer?.name || '—'}</Td>
+                  <Td>{formatDate(q.created_at || q.date)}</Td>
+                  <Td>{formatDate(q.valid_until)}</Td>
                   <Td>{formatCurrency(q.subtotal)}</Td>
-                  <Td>{formatCurrency(q.discount)}</Td>
-                  <Td>{formatCurrency(q.tax)}</Td>
-                  <Td className="font-medium">{formatCurrency(q.total)}</Td>
-                  <Td><StatusBadge status={q.status} /></Td>
+                  <Td>{formatCurrency(q.tax_amount ?? q.tax)}</Td>
+                  <Td className="font-semibold text-slate-900">{formatCurrency(q.total)}</Td>
+                  <Td>
+                    <StatusBadge status={q.status} />
+                  </Td>
                   <Td>
                     <div className="flex justify-end">
-                      <IconButton icon={Eye} label="View" onClick={() => navigate(`/quotations/${q.id}`)} />
+                      <IconButton icon={Eye} label="View quotation" onClick={() => navigate(`/quotations/${q.id}`)} />
                     </div>
                   </Td>
                 </tr>
@@ -93,4 +102,3 @@ export default function QuotationsPage() {
     </div>
   );
 }
-
